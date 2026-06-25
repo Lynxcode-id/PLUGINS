@@ -1,0 +1,101 @@
+/**
+ * ───「 FEATURE AUTHOR 」───
+ * 👤 Author     : Lynx Decode
+ * 📞 Contact    : +62 882-5804-1396
+ * 📢 Channel    : https://whatsapp.com/channel/0029VbAnuii6GcGCu73oep1i
+ * ⚠️ Note       : Keep credit to respect the creator!
+ * ─────────────────────────
+ * 📝 Plugin: Afinitas MLBB Maker
+ */
+
+import axios from 'axios';
+import uploadImage from '../lib/uploadImage.js';
+
+let handler = async (m, { conn, args, usedPrefix, command }) => {
+    let q = m.quoted ? m.quoted : m;
+    let mime = (q.msg || q).mimetype || '';
+
+    if (!mime.startsWith('image/')) {
+        return m.reply(`┌˚₊ ๑│ ᴀ ꜰ ɪ ɴ ɪ ᴛ ᴀ s  ᴍ ʟ │๑˚₊ 🎮\n┇ \n│ ❌ Kirim atau balas gambar dengan caption!\n│ \n│ *Opsi Background:* 1 - 6\n│ *Contoh:* ${usedPrefix + command} 3\n┇ \n└˚₊ ๑ ────────────── ๑˚₊\n> © ERINE-AI X LYNX DECODE`);
+    }
+
+    // Default background ke 1 kalau user gak ngasih angka atau inputnya ngaco
+    let bg = args[0] || '1';
+    if (isNaN(bg) || parseInt(bg) < 1 || parseInt(bg) > 6) {
+        bg = '1';
+    }
+
+    await m.react('⏳');
+    m.reply(`⏳ *Processing...*\nSedang membuat kartu Afinitas MLBB (Style ${bg}).\nMohon tunggu sebentar...`);
+
+    try {
+        // 1. Download Media dari pesan WhatsApp
+        let media = await q.download();
+        
+        // 2. Upload Media pakai lib uploadImage bawaan Erine
+        let imageUrl = await uploadImage(media);
+
+        if (!imageUrl) {
+            throw new Error("Gagal mengupload gambar ke server.");
+        }
+
+        // 3. Tembak API Afinitas Jagoan Project
+        const apiUrl = `https://restapi.jagoanproject.web.id/api/maker/afinitasml?image=${encodeURIComponent(imageUrl)}&bg=${bg}`;
+        
+        const reqHeaders = {
+            headers: {
+                'Authorization': 'Bearer Lynxdecode', // Wajib ada cuy biar gak ditolak
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+                'Accept': 'application/json'
+            }
+        };
+
+        const { data } = await axios.get(apiUrl, reqHeaders);
+
+        if (!data.status) {
+            throw new Error(data.message || `API merespon status false!\n${JSON.stringify(data, null, 2)}`);
+        }
+
+        // Antisipasi letak URL dari API
+        let resultUrl = data?.data?.result?.url || data?.result?.url;
+
+        if (!resultUrl) {
+            throw new Error("URL gambar hasil tidak ditemukan di dalam respon API.");
+        }
+
+        // 4. Ambil buffer gambar dari resultUrl (Wajib pakai Bearer Token juga)
+        const getBuffer = await axios.get(resultUrl, {
+            responseType: 'arraybuffer',
+            headers: {
+                'Authorization': 'Bearer Lynxdecode',
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36'
+            }
+        });
+
+        // 5. Build Caption UI Erine-AI
+        let cap = `┌˚₊ ๑│ ᴀ ꜰ ɪ ɴ ɪ ᴛ ᴀ s  ᴍ ʟ │๑˚₊ 🎮\n┇ \n│ ✅ *Sukses membuat Afinitas MLBB!*\n│ 🎨 *Background:* Style ${bg}\n┇ \n└˚₊ ๑ ────────────── ๑˚₊\n> © ERINE-AI X LYNX DECODE`;
+
+        // 6. Kirim ke User
+        await conn.sendMessage(m.chat, { 
+            image: Buffer.from(getBuffer.data), 
+            caption: cap 
+        }, { quoted: m });
+        
+        await m.react('✅');
+
+    } catch (e) {
+        console.error('[AFINITAS ML ERROR]', e);
+        await m.react('❌');
+        
+        let errMsg = e.response?.data?.message || e.message || "Internal Server Error";
+        
+        m.reply(`┌˚₊ ๑│ s ʏ s ᴛ ᴇ ᴍ  ᴇ ʀ ʀ ᴏ ʀ │๑˚₊ ❌\n┇ Gagal membuat gambar:\n┇ ${errMsg}\n└˚₊ ๑ ────────────── ๑˚₊\n> © ERINE-AI X LYNX DECODE`);
+    }
+}
+
+handler.help = ['afinitasml <1-6>'];
+handler.tags = ['maker'];
+handler.command = /^(afinitasml|afinitas)$/i;
+handler.limit = true;
+
+export default handler;
