@@ -1,0 +1,62 @@
+/**
+ * ───「 FEATURE AUTHOR 」───
+ * 👤 Author     : Lynx Decode
+ * 📞 Contact    : +62 882-5804-1396
+ * 📢 Channel    : https://whatsapp.com/channel/0029VbAnuii6GcGCu73oep1i
+ * ⚠️ Note       : Keep credit to respect the creator!
+ * ─────────────────────────
+ * 📝 Plugin: AI Image Generator (GPT Image)
+ */
+
+import axios from 'axios';
+
+let handler = async (m, { conn, text, usedPrefix, command }) => {
+    if (!text) {
+        return m.reply(`┌˚₊ ๑│ ᴀ ɪ  ɪ ᴍ ᴀ ɢ ᴇ │๑˚₊ ⚠️\n┇ \n│ ❌ *Format salah!*\n│ \n│ 📌 *Cara pakai:*\n│ ${usedPrefix + command} <deskripsi gambar>\n│ \n│ *Contoh:*\n│ ${usedPrefix + command} foto dari belakang orang di pantai dengan senja\n┇ \n└˚₊ ๑ ────────────── ๑˚₊\n> © ERINE-AI`);
+    }
+
+    await m.react('⏳');
+
+    try {
+        const apiUrl = `https://api.ikyyxd.my.id/ai/gptimage?text=${encodeURIComponent(text)}`;
+        
+        const response = await axios.get(apiUrl, {
+            responseType: 'arraybuffer'
+        });
+
+        const imageBuffer = Buffer.from(response.data);
+
+        let caption = `┌˚₊ ๑│ ᴀ ɪ  ɪ ᴍ ᴀ ɢ ᴇ │๑˚₊ 🎨\n┇ \n` +
+                      `│ 📝 *Prompt:* ${text}\n` +
+                      `┇ \n` +
+                      `└˚₊ ๑ ────────────── ๑˚₊\n` +
+                      `> © ERINE-AI`;
+
+        await conn.sendMessage(m.chat, {
+            image: imageBuffer,
+            caption: caption,
+            contextInfo: {
+                isForwarded: true,
+                forwardingScore: 9999,
+                forwardedNewsletterMessageInfo: {
+                    newsletterJid: "120363400612665352@newsletter",
+                    newsletterName: "🔥 𝙴𝚁𝙸𝙽𝙴-𝙰𝙸 𝙸𝙽𝙵𝙾𝚁𝙼𝙰𝚃𝙸𝙾𝙽",
+                    serverMessageId: -1
+                }
+            }
+        }, { quoted: m });
+
+        await m.react('✅');
+
+    } catch (error) {
+        console.error('[AI IMAGE ERROR]', error);
+        await m.react('❌');
+        m.reply(`┌˚₊ ๑│ s ʏ s ᴛ ᴇ ᴍ  ᴇ ʀ ʀ ᴏ ʀ │๑˚₊ ❌\n┇ Gagal membuat gambar dari server AI.\n┇ *Detail:* ${error.message || String(error)}\n└˚₊ ๑ ────────────── ๑˚₊\n> © ERINE-AI`);
+    }
+};
+
+handler.help = ['gptimage <prompt>'];
+handler.tags = ['ai'];
+handler.command = /^(gptimage)$/i;
+
+export default handler;
