@@ -1,0 +1,91 @@
+/**
+ * ───「 FEATURE AUTHOR 」───
+ * 👤 Author     : Lynx Decode
+ * 📞 Contact    : +62 882-5804-1396
+ * 📢 Channel    : https://whatsapp.com/channel/0029VbAnuii6GcGCu73oep1i
+ * ⚠️ Note       : Keep credit to respect the creator!
+ * ─────────────────────────
+ * 📝 Plugin: IG Downloader (ikyyxd API)
+ */
+
+let handler = async (m, { conn, args, usedPrefix, command }) => {
+    if (!args[0]) {
+        return m.reply(`┌˚₊ ๑│ ɪ ɴ s ᴛ ᴀ ɢ ʀ ᴀ ᴍ │๑˚₊ ⚠️\n┇ \n│ ❌ *Format salah!*\n│ \n│ 📌 *Cara pakai:*\n│ ${usedPrefix + command} <URL Instagram>\n┇ \n└˚₊ ๑ ────────────── ๑˚₊\n> © ERINE-AI`)
+    }
+
+    if (!args[0].match(/(instagram\.com|instagr\.am)/i)) {
+        return m.reply(`┌˚₊ ๑│ s ʏ s ᴛ ᴇ ᴍ  ᴇ ʀ ʀ ᴏ ʀ │๑˚₊ ❌\n┇ Link yang lu masukin bukan link Instagram cuy!\n└˚₊ ๑ ────────────── ๑˚₊\n> © ERINE-AI`)
+    }
+
+    await m.react('⏳')
+
+    try {
+        const apiKey = 'kyzz'
+        const apiUrl = `https://api.ikyyxd.my.id/download/instagram?apikey=${apiKey}&query=${encodeURIComponent(args[0])}`
+        
+        const res = await fetch(apiUrl)
+        const data = await res.json()
+
+        if (!data.status || !data.result || !data.result.download_urls || data.result.download_urls.length === 0) {
+            await m.react('❌')
+            return m.reply(`┌˚₊ ๑│ s ʏ s ᴛ ᴇ ᴍ  ᴇ ʀ ʀ ᴏ ʀ │๑˚₊ ❌\n┇ Gagal narik data atau media tidak ditemukan.\n└˚₊ ๑ ────────────── ๑˚₊\n> © ERINE-AI`)
+        }
+
+        const { download_urls, metadata } = data.result
+        
+        let ctext = metadata.caption || '-'
+        if (ctext.length > 800) ctext = ctext.substring(0, 800) + '... (Teks dipotong)'
+
+        let captionInfo = `┌˚₊ ๑│ ɪ ɴ s ᴛ ᴀ ɢ ʀ ᴀ ᴍ │๑˚₊ 📸\n` +
+                          `┇ \n` +
+                          `│ 👤 *Username:* @${metadata.username || '-'}\n` +
+                          `│ ❤️ *Likes:* ${metadata.like || '0'}\n` +
+                          `│ 💬 *Comments:* ${metadata.comment || '0'}\n` +
+                          `│ 📝 *Caption:*\n` +
+                          `│ ${ctext}\n` +
+                          `┇ \n` +
+                          `└˚₊ ๑ ────────────── ๑˚₊\n` +
+                          `> © ERINE-AI`
+
+        if (metadata.isVideo) {
+            for (let i = 0; i < download_urls.length; i++) {
+                await conn.sendMessage(m.chat, {
+                    video: { url: download_urls[i] },
+                    caption: i === 0 ? captionInfo : ''
+                }, { quoted: m })
+            }
+        } else {
+            for (let i = 0; i < download_urls.length; i++) {
+                await conn.sendMessage(m.chat, {
+                    image: { url: download_urls[i] }
+                }, { quoted: m })
+            }
+            
+            await conn.sendMessage(m.chat, {
+                text: captionInfo,
+                contextInfo: {
+                    isForwarded: true,
+                    forwardingScore: 9999,
+                    forwardedNewsletterMessageInfo: {
+                        newsletterJid: "120363400612665352@newsletter",
+                        newsletterName: "🔥 𝙴𝚁𝙸𝙽𝙴-𝙰𝙸 𝙸𝙽𝙵𝙾𝚁𝙼𝙰𝚃𝙸𝙾𝙽",
+                        serverMessageId: -1
+                    }
+                }
+            }, { quoted: m })
+        }
+
+        await m.react('✅')
+
+    } catch (error) {
+        console.error('[IG DOWNLOAD ERROR]', error)
+        await m.react('❌')
+        m.reply(`┌˚₊ ๑│ s ʏ s ᴛ ᴇ ᴍ  ᴇ ʀ ʀ ᴏ ʀ │๑˚₊ ❌\n┇ Terjadi kesalahan sistem.\n┇ *Detail:* ${error.message || String(error)}\n└˚₊ ๑ ────────────── ๑˚₊\n> © ERINE-AI`)
+    }
+}
+
+handler.help = ['ig <url>']
+handler.tags = ['downloader']
+handler.command = /^(ig|instagram|igdl)$/i
+
+export default handler
