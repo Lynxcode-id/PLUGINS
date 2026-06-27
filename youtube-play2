@@ -1,0 +1,83 @@
+/**
+ * ───「 FEATURE AUTHOR 」───
+ * 👤 Author     : Lynx Decode
+ * 📞 Contact    : +62 882-5804-1396
+ * 📢 Channel    : https://whatsapp.com/channel/0029VbAnuii6GcGCu73oep1i
+ * ⚠️ Note       : Keep credit to respect the creator!
+ * ─────────────────────────
+ * 📝 Plugin: YouTube Play 8 (Ikyyxd API v2)
+ */
+
+import axios from 'axios'
+
+let handler = async (m, { conn, text, usedPrefix, command }) => {
+    if (!text) {
+        return m.reply(`┌˚₊ ๑│ ʏ ᴛ  ᴘ ʟ ᴀ ʏ │๑˚₊ 🎵\n┇ \n│ ❌ *Judul lagunya mana cuy?*\n│ \n│ 📌 *Cara pakai:*\n│ ${usedPrefix + command} the 1975 about you\n┇ \n└˚₊ ๑ ────────────── ๑˚₊\n> © ERINE-AI`)
+    }
+
+    await m.react('⏳')
+
+    try {
+        const apiUrl = `https://api.ikyyxd.my.id/search/ytplayv2?q=${encodeURIComponent(text.trim())}`
+        const { data } = await axios.get(apiUrl, {
+            headers: {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36',
+                'Accept': 'application/json'
+            }
+        })
+
+        if (!data.status || !data.result) {
+            throw new Error('Gagal mendapatkan data lagu dari API.')
+        }
+
+        let res = data.result
+        let audioUrl = res.audio?.url
+        
+        if (!audioUrl) {
+            throw new Error('Link audio tidak ditemukan dari server.')
+        }
+
+        let d = res.duration || 0
+        let mnt = Math.floor(d / 60)
+        let dtk = d % 60
+        let durationStr = `${mnt}:${dtk < 10 ? '0' : ''}${dtk}`
+
+        let caption = `┌˚₊ ๑│ ʏ ᴛ  ᴘ ʟ ᴀ ʏ │๑˚₊ 🎵\n` +
+                      `┇ \n` +
+                      `│ 🎬 *Judul:* ${res.title || '-'}\n` +
+                      `│ ⏱️ *Durasi:* ${durationStr}\n` +
+                      `│ 🎧 *Format:* ${res.audio?.type || 'mp3'}\n` +
+                      `│ 🔗 *Source:* ${res.source || '-'}\n` +
+                      `┇ \n` +
+                      `└˚₊ ๑ ────────────── ๑˚₊\n` +
+                      `> © ERINE-AI`
+
+        if (res.thumbnail) {
+            await conn.sendMessage(m.chat, { image: { url: res.thumbnail }, caption: caption }, { quoted: m })
+        } else {
+            await m.reply(caption)
+        }
+
+        await conn.sendMessage(m.chat, { 
+            audio: { url: audioUrl }, 
+            mimetype: 'audio/mpeg',
+            ptt: false 
+        }, { quoted: m })
+
+        await m.react('✅')
+
+    } catch (error) {
+        console.error('[YTPLAY8 ERROR]', error)
+        await m.react('❌')
+        
+        let errMsg = error.response?.data?.message || error.message || String(error)
+        m.reply(`┌˚₊ ๑│ ꜱ ʏ ꜱ ᴛ ᴇ ᴍ  ᴇ ʀ ʀ ᴏ ʀ │๑˚₊ ❌\n┇ Terjadi kesalahan sistem.\n┇ *Detail:* ${errMsg}\n└˚₊ ๑ ────────────── ๑˚₊\n> © ERINE-AI`)
+    }
+}
+
+handler.help = ['play2 <judul>']
+handler.tags = ['downloader', 'search']
+handler.command = /^(play2)$/i
+handler.limit = true
+
+export default handler
