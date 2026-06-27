@@ -1,0 +1,45 @@
+/**
+ * ───「 FEATURE AUTHOR 」───
+ * 👤 Author     : Lynx Decode
+ * 📞 Contact    : +62 882-5804-1396
+ * 📢 Channel    : https://whatsapp.com/channel/0029VbAnuii6GcGCu73oep1i
+ * ⚠️ Note       : Keep credit to respect the creator!
+ * ─────────────────────────
+ * 📝 Plugin: Maker Fake DANA
+ */
+
+let handler = async (m, { conn, text, usedPrefix, command }) => {
+    if (!text) return m.reply(`┌˚₊ ๑│ ꜰ ᴀ ᴋ ᴇ  ᴅ ᴀ ɴ ᴀ │๑˚₊ 💸\n┇ \n│ ❌ *Nominal transfernya mana cuy?*\n│ \n│ 📌 *Cara pakai:*\n│ ${usedPrefix + command} 150000\n┇ \n└˚₊ ๑ ────────────── ๑˚₊\n> © ERINE-AI x INF PROJECT`)
+    
+    let nominal = text.trim()
+    if (!/^[0-9]+$/.test(nominal)) return m.reply('❌ Nominal tidak valid cuy! Pastikan hanya memasukkan angka (tanpa titik/koma).')
+
+    await m.react('⏳')
+
+    try {
+        const apiUrl = `https://api-xemoz-official.my.id/api/maker/fake-dana.php?nominal=${nominal}`
+        let formatRupiah = new Intl.NumberFormat('id-ID').format(nominal)
+
+        let caption = `┌˚₊ ๑│ ꜰ ᴀ ᴋ ᴇ  ᴅ ᴀ ɴ ᴀ │๑˚₊ 💸\n` +
+                      `┇ \n` +
+                      `│ ✅ *Struk transfer berhasil dibuat!*\n` +
+                      `│ 💵 *Nominal:* Rp ${formatRupiah}\n` +
+                      `┇ \n` +
+                      `└˚₊ ๑ ────────────── ๑˚₊\n` +
+                      `> © ERINE-AI x INF PROJECT`
+
+        await conn.sendMessage(m.chat, { image: { url: apiUrl }, caption }, { quoted: m })
+        await m.react('✅')
+    } catch (error) {
+        console.error('[FAKE DANA ERROR]', error)
+        await m.react('❌')
+        m.reply(`┌˚₊ ๑│ ꜱ ʏ ꜱ ᴛ ᴇ ᴍ  ᴇ ʀ ʀ ᴏ ʀ │๑˚₊ ❌\n┇ Terjadi kesalahan sistem.\n┇ *Detail:* ${error.message || String(error)}\n└˚₊ ๑ ────────────── ๑˚₊\n> © ERINE-AI`)
+    }
+}
+
+handler.help = ['fakedana <nominal>']
+handler.tags = ['maker']
+handler.command = /^(fakedana|danafake)$/i
+handler.limit = true
+
+export default handler
