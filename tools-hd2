@@ -1,0 +1,147 @@
+/**
+ * ───「 FEATURE AUTHOR 」───
+ * 👤 Author Bot : Lynx Decode
+ * 👤 Scraper By : jerexd (https://whatsapp.com/channel/0029VbATPjCJkK76nT3RVh20)
+ * 📞 Contact    : +62 882-5804-1396
+ * 📢 Channel    : https://whatsapp.com/channel/0029VbAnuii6GcGCu73oep1i
+ * ⚠️ Note       : Keep credit to respect the creator!
+ * ─────────────────────────
+ * 📝 Plugin: Image Upscaler HD
+ */
+
+import fetch from 'node-fetch'
+import { FormData, Blob } from 'formdata-node'
+
+const COOKIE = "cf_clearance=24txQjIRrNFlQkG1Dw3385bpI1T9jhaUE4HgGDOODkc-1766044598-1.2.1.1-es78ywtWLJGPH2MHnSB0obbSe6QFLbQULaNndpJbFjs9z9H2TL2SRP4rxUFSFXh4m4_2K0o0Jz99kzEDfstdlWrsIMm21IfSXWte_oT7vC9EgJXzngKk9I36LeNnGzEk3UIS_qMrQZ1_T5zuXX43EAEAfdQSHB1IxPflwHmMkNe8dtHDauYf4RqQexmTzB_q6PdyuJfSGndlvQVtixfapxOLHwLxBM8qVSjZ2.q1Ybw; _ga=GA1.1.361816903.1766044600;"
+const USER_AGENT = "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Mobile Safari/537.36"
+
+const COMMON_HEADERS = {
+    'Accept': '*/*',
+    'Accept-Encoding': 'gzip, deflate, br',
+    'Accept-Language': 'id-ID,id;q=0.9,en-US;q=0.8,en;q=0.7',
+    'Cookie': COOKIE,
+    'Origin': 'https://imgupscaler.com',
+    'Referer': 'https://imgupscaler.com/',
+    'Sec-Ch-Ua': '"Chromium";v="137", "Not/A)Brand";v="24"',
+    'Sec-Ch-Ua-Mobile': '?1',
+    'Sec-Ch-Ua-Platform': '"Android"',
+    'Sec-Fetch-Dest': 'empty',
+    'Sec-Fetch-Mode': 'cors',
+    'Sec-Fetch-Site': 'same-origin',
+    'User-Agent': USER_AGENT
+}
+
+let handler = async (m, { conn, usedPrefix, command }) => {
+    let q = m.quoted ? m.quoted : m
+    let mime = (q.msg || q).mimetype || ''
+
+    if (!/image/.test(mime)) {
+        return m.reply(`┌˚₊ ๑│ ᴜ ᴘ s ᴄ ᴀ ʟ ᴇ  ʜ ᴅ │๑˚₊ ⚠️\n┇ \n│ ❌ *Format salah!*\n│ \n│ 📌 *Cara pakai:*\n│ Kirim atau reply foto dengan perintah ${usedPrefix + command}\n┇ \n└˚₊ ๑ ────────────── ๑˚₊\n> © ERINE-AI`)
+    }
+
+    await m.react('⏳')
+
+    try {
+        let media = await q.download()
+        
+        let upForm = new FormData()
+        let upBlob = new Blob([media], { type: mime })
+        upForm.append('file', upBlob, 'upscale_input.jpg')
+
+        let uploadRes = await fetch('https://api.shinzu.web.id/api/upload/litterbox', {
+            method: 'POST',
+            body: upForm
+        })
+        let uploadJson = await uploadRes.json()
+        if (!uploadJson.status || !uploadJson.result) throw new Error('Gagal mengunggah media ke awan penyimpanan.')
+
+        let targetForm = new FormData()
+        targetForm.append('tool', 'upscaler')
+        targetForm.append('mode', 'batch')
+        targetForm.append('scaleRadio', '2')
+        targetForm.append('file', upBlob, { filename: 'image.jpg', contentType: mime })
+
+        let apiRes = await fetch('https://imgupscaler.com/api/legacy/upload', {
+            method: 'POST',
+            headers: {
+                ...COMMON_HEADERS
+            },
+            body: targetForm
+        })
+
+        let apiJson = await apiRes.json()
+        let taskId = apiJson?.data?.code || apiJson?.taskId
+        if (!taskId) throw new Error('Gagal memperoleh Token Antrean ID dari ImgUpscaler.')
+
+        let isComplete = false
+        let downloadUrl = null
+        let attempts = 0
+        const maxAttempts = 15
+
+        while (!isComplete && attempts < maxAttempts) {
+            attempts++
+            let statusRes = await fetch('https://imgupscaler.com/api/legacy/status', {
+                method: 'POST',
+                headers: {
+                    ...COMMON_HEADERS,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ tool: "upscaler", taskId: taskId, scaleRadio: "2" })
+            })
+
+            let statusJson = await statusRes.json()
+            let status = statusJson?.status || statusJson?.raw?.data?.status
+
+            if (status === 'success') {
+                isComplete = true
+                let urls = statusJson?.downloadUrls || statusJson?.raw?.data?.downloadUrls
+                if (urls && urls.length > 0) {
+                    downloadUrl = urls[0]
+                }
+            } else {
+                await new Promise(resolve => setTimeout(resolve, 3000))
+            }
+        }
+
+        if (!downloadUrl) throw new Error('Waktu tunggu habis! Antrean server target padat.')
+
+        let finalRes = await fetch(downloadUrl, {
+            headers: {
+                'User-Agent': USER_AGENT,
+                'Referer': 'https://imgupscaler.com/'
+            }
+        })
+        let resultBuffer = Buffer.from(await finalRes.arrayBuffer())
+
+        let caption = `┌˚₊ ๑│ ᴜ ᴘ s ᴄ ᴀ ʟ ᴇ  ʜ ᴅ │๑˚₊ ✨\n` +
+                      `┇ \n` +
+                      `│ ✅ *Sukses meningkatkan resolusi!*\n` +
+                      `│ 👤 *Scraper By:* jerexd\n` +
+                      `┇ \n` +
+                      `└˚₊ ๑ ────────────── ๑˚₊\n` +
+                      `> © ERINE-AI`
+
+        await conn.sendMessage(m.chat, {
+            image: resultBuffer,
+            caption: caption
+        }, { quoted: m })
+
+        await m.react('✅')
+
+    } catch (error) {
+        console.error('[UPSCALE ERROR]', error)
+        await m.react('❌')
+        
+        let errMsg = error.message || String(error)
+        if (errMsg.length > 500) errMsg = errMsg.substring(0, 500) + '... (cek console)'
+
+        m.reply(`┌˚₊ ๑│ s ʏ s ᴛ ᴇ ᴍ  ᴇ ʀ ʀ ᴏ ʀ │๑˚₊ ❌\n┇ Terjadi kesalahan sistem.\n┇ *Detail:* ${errMsg}\n└˚₊ ๑ ────────────── ๑˚₊\n> © ERINE-AI`)
+    }
+}
+
+handler.help = ['hd']
+handler.tags = ['maker']
+handler.command = /^hd$/i
+handler.limit = true
+
+export default handler
