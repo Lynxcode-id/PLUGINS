@@ -43,7 +43,7 @@ Plugin di dalam repo ini sangat direkomendasikan dan diuji coba langsung pada si
 ## 🤝 Kontributor (INF Project)
 Terima kasih kepada tim di balik layar yang selalu menjaga kualitas sistem:
 - **Lynx Decode** (Owner / Lead Developer)
-- **Fall** (Admin)
+- **Falldy** (Admin)
 - **Dinda** (Deputy Owner)
 
 ---
