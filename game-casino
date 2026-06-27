@@ -1,0 +1,53 @@
+/**
+ * ───「 FEATURE AUTHOR 」───
+ * 👤 Author     : Lynx Decode
+ * 📞 Contact    : +62 882-5804-1396
+ * 📢 Channel    : https://whatsapp.com/channel/0029VbAnuii6GcGCu73oep1i
+ * ⚠️ Note       : Keep credit to respect the creator!
+ * ─────────────────────────
+ * 📝 Plugin: Cyber Slot Casino (No API Required)
+ */
+
+let handler = async (m, { conn }) => {
+    await m.react('🎰')
+
+    let emojis = ["🍒", "🍉", "🍋", "🔔", "💎", "🍇", "🍀"]
+    
+    let a = Math.floor(Math.random() * emojis.length)
+    let b = Math.floor(Math.random() * emojis.length)
+    let c = Math.floor(Math.random() * emojis.length)
+
+    let x = [], y = [], z = []
+    for (let i = 0; i < 3; i++) {
+        x[i] = emojis[Math.floor(Math.random() * emojis.length)]
+        y[i] = emojis[Math.floor(Math.random() * emojis.length)]
+        z[i] = emojis[Math.floor(Math.random() * emojis.length)]
+    }
+
+    let end
+    if (a === b && b === c) {
+        end = `🎉 *JACKPOT!* Kamu menang besar cuy!`
+    } else if (a === b || a === c || b === c) {
+        end = `✨ *LUMAYAN!* Hampir jackpot!`
+    } else {
+        end = `❌ *KALAH!* Coba lagi cuy!`
+    }
+
+    let slotMsg = `┌˚₊ ๑│ ᴄ ʏ ʙ ᴇ ʀ  s ʟ ᴏ ᴛ │๑˚₊ 🎰\n` +
+                  `┇ \n` +
+                  `│       ${x[0]} ┆ ${y[0]} ┆ ${z[0]}\n` +
+                  `│ ➔  ${emojis[a]} ┆ ${emojis[b]} ┆ ${emojis[c]}  ⬅️\n` +
+                  `│       ${x[2]} ┆ ${y[2]} ┆ ${z[2]}\n` +
+                  `┇ \n` +
+                  `└˚₊ ๑ ────────────── ๑˚₊\n` +
+                  `> ${end}`
+
+    await conn.sendMessage(m.chat, { text: slotMsg }, { quoted: m })
+}
+
+handler.help = ['slot', 'spin']
+handler.tags = ['game']
+handler.command = /^(slot|spin|casino)$/i
+handler.limit = true
+
+export default handler
