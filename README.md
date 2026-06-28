@@ -26,10 +26,10 @@ Semua kode di sini dirancang dengan struktur *clean code* dan antarmuka *cyber-m
 
 ## 🤖 Supported Base Bots
 Plugin di dalam repo ini sangat direkomendasikan dan diuji coba langsung pada sistem bot berikut:
-* **Erine-MD**
-* **Trisha-MD** *(Hydro)*
-* **Takina-MD**
-* **Jemima-MD** *(Perlu sedikit penyesuaian pada struktur plugin)*
+* **Erine-AI**
+* **Trisha-MD**
+* **Takina-Project**
+* **Jemima-AI**
 
 ---
 
@@ -41,15 +41,18 @@ Plugin di dalam repo ini sangat direkomendasikan dan diuji coba langsung pada si
 5. *Restart* bot (atau gunakan fitur *auto-reload* jika bot kamu mendukungnya).
 
 ## 🤝 Kontributor (INF Project)
-Terima kasih kepada tim di balik layar yang selalu menjaga kualitas sistem:
+Terima kasih kepada tim maupun sukarelawan di balik layar yang selalu menjaga kualitas sistem plugin project ini:
+
 - **Lynx Decode** (Owner / Lead Developer)
 - **Falldy** (Admin)
 - **Dinda** (Deputy Owner)
+- **Maxz Store** (Volunteer)
 
 ---
 
 ## ☕ Dukung Kami
 Jika plugin di sini membantu kelancaran bot kalian, jangan lupa beri ⭐ (Star) pada repository ini!
+
 Kalian juga bisa mendukung *developer* untuk terus ngopi dan *update* fitur baru melalui:
 > **[Saweria - Lynx Decode](https://saweria.co/LynxPreset)**
 
