@@ -1,0 +1,118 @@
+/**
+ * ───「 FEATURE AUTHOR 」───
+ * 👤 Author : maxz str
+ * 📞 Contributor : +62851-4368-8664
+ * 📢 Channel : https://whatsapp.com/channel/0029VbAnuii6GcGCu73oep1i
+ * ⚠️ Note: Keep credit to respect the creator!
+ * ─────────────────────────
+ * 📝 Plugin: Spotify Downloader 2 (SaveTube Engine)
+ */
+
+import { createDecipheriv } from 'crypto'
+import yts from 'yt-search'
+
+const METADATA_DECRYPTION_KEY = Buffer.from('C5D58EF67A7584E4A29F6C35BBC4EB12', 'hex')
+const HEADERS = {
+  'Content-Type': 'application/json',
+  Origin: 'https://yt.savetube.me',
+  'User-Agent': 'Mozilla/5.0 (Linux; Android 15) AppleWebKit/537.36 Chrome/130 Mobile Safari/537.36'
+}
+
+async function savetube(url, { downloadType = 'audio', quality = '128kbps' } = {}) {
+  const idMatch = url.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|shorts\/|embed\/))([a-zA-Z0-9_-]{11})/)
+  if (!idMatch) throw 'URL YouTube tidak valid'
+  const videoId = idMatch[1]
+  const cdnRes = await fetch('https://media.savetube.vip/api/random-cdn', { headers: HEADERS }).then(v => v.json()).catch(() => null)
+  if (!cdnRes?.cdn) throw 'CDN tidak tersedia'
+  const cdn = cdnRes.cdn
+  const info = await fetch(`https://${cdn}/v2/info`, {
+    method: 'POST',
+    headers: HEADERS,
+    body: JSON.stringify({ url: 'https://www.youtube.com/watch?v=' + videoId })
+  }).then(v => v.json()).catch(() => null)
+  if (!info?.data) throw 'Metadata kosong'
+  const encrypted = Buffer.from(info.data, 'base64')
+  const decipher = createDecipheriv('aes-128-cbc', METADATA_DECRYPTION_KEY, encrypted.subarray(0, 16))
+  const decrypted = Buffer.concat([decipher.update(encrypted.subarray(16)), decipher.final()])
+  const metadata = JSON.parse(decrypted.toString('utf8'))
+  if (!metadata?.key) throw 'Key download tidak ditemukan'
+  const dl = await fetch(`https://${cdn}/download`, {
+    method: 'POST',
+    headers: HEADERS,
+    body: JSON.stringify({ id: videoId, downloadType, quality, key: metadata.key })
+  }).then(v => v.json()).catch(() => null)
+  if (!dl?.data?.downloadUrl) throw dl?.message || 'Download gagal'
+  return { title: metadata.title, duration: metadata.durationLabel, thumbnail: metadata.thumbnail, url: dl.data.downloadUrl }
+}
+
+let handler = async (m, { conn, text, usedPrefix, command }) => {
+  if (!text) {
+    return m.reply(`┌˚₊ ๑│ ꜱ ᴘ ᴏ ᴛ ɪ ꜰ ʏ  2 │๑˚₊ 🎵\n┇ \n│ ❌ *Judul lagu atau link-nya mana cuy?*\n│ \n│ 📌 *Cara pakai:*\n│ ${usedPrefix + command} swim chase atlantic\n│ ${usedPrefix + command} https://open.spotify.com/track/xxxx\n┇ \n└˚₊ ๑ ────────────── ๑˚₊\n> © ERINE-AI`)
+  }
+
+  await m.react('⏳')
+
+  try {
+    let query = text.trim()
+    
+    // Jika user memasukkan link spotify, bersihkan kata kuncinya agar bisa dicari di YT
+    if (query.includes('spotify.com')) {
+      query = query.replace(/https:\/\/open\.spotify\.com\/(track|album)\/[a-zA-Z0-9?=\-_]*/gi, '')
+      // Jika setelah dihapus link-nya malah kosong, beri default query pencarian aman
+      if (!query) query = "Lagu Spotify Viral"
+    }
+
+    // Cari lagu via yt-search internal
+    const search = await yts(query)
+    const res = search.videos[0]
+    if (!res) throw new Error('Lagu tidak ditemukan.')
+
+    // Sedot audio via savetube bypass
+    let audio = await savetube(res.url, { downloadType: 'audio', quality: '128kbps' })
+
+    let caption = `┌˚₊ ๑│ ꜱ ᴘ ᴏ ᴛ ɪ ꜰ ʏ  2 │๑˚₊ 🎵\n` +
+                  `┇ \n` +
+                  `│ 🎬 *Judul:* ${res.title || '-'}\n` +
+                  `│ 👤 *Artis:* ${res.author?.name || '-'}\n` +
+                  `│ 🔗 *Source:* ${text.includes('spotify.com') ? text : res.url}\n` +
+                  `┇ \n` +
+                  `└˚₊ ๑ ────────────── ๑˚₊\n` +
+                  `> © ERINE-AI`
+
+    if (res.thumbnail) {
+        await conn.sendMessage(m.chat, { image: { url: res.thumbnail }, caption: caption }, { quoted: m })
+    } else {
+        await m.reply(caption)
+    }
+
+    await conn.sendMessage(m.chat, {
+      audio: { url: audio.url },
+      mimetype: 'audio/mpeg',
+      ptt: false,
+      contextInfo: {
+        externalAdReply: {
+          title: res.title,
+          body: res.author?.name || 'Spotify Downloader',
+          thumbnailUrl: res.thumbnail,
+          sourceUrl: text.includes('spotify.com') ? text : res.url,
+          mediaType: 1,
+          renderLargerThumbnail: true
+        }
+      }
+    }, { quoted: m })
+
+    await m.react('✅')
+
+  } catch (e) {
+    console.error('[SPOTIFY2 ERROR]', e)
+    await m.react('❌')
+    m.reply(`┌˚₊ ๑│ ꜱ ʏ ꜱ ᴛ ᴇ ᴍ  ᴇ ʀ ʀ ᴏ ʀ │๑˚₊ ❌\n┇ Terjadi kesalahan sistem.\n┇ *Detail:* ${e.message || e}\n└˚₊ ๑ ────────────── ๑˚₊\n> © ERINE-AI`)
+  }
+}
+
+handler.help = ['spotify2 <judul/url>']
+handler.tags = ['downloader']
+handler.command = /^spotify2$/i
+handler.limit = true
+
+export default handler
