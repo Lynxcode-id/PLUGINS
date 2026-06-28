@@ -1,0 +1,94 @@
+/**
+ * ───「 FEATURE AUTHOR 」───
+ * 👤 Author : maxz str
+ * 📞 Contributor : +62851-4368-8664
+ * 📢 Channel : https://whatsapp.com/channel/0029VbAnuii6GcGCu73oep1i
+ * ⚠️ Note: Keep credit to respect the creator!
+ * ─────────────────────────
+ * 📝 Plugin: Local Random Quotes Generator (Anti-Error)
+ */
+
+let handler = async (m, { conn, usedPrefix, command }) => {
+    await m.react('⏳')
+
+    try {
+        const quotesDatabase = [
+            { quote: "A truth not understood becomes an error.", author: "Unknown" },
+            { quote: "Hanya karena prosesmu lambat, bukan berarti kamu gagal.", author: "Motivasi" },
+            { quote: "Kerja keras mengalahkan bakat ketika bakat tidak bekerja keras.", author: "Tim Notke" },
+            { quote: "Do not pray for an easy life, pray for the strength to endure a difficult one.", author: "Bruce Lee" },
+            { quote: "Waktu yang kamu nikmati untuk terbuang bukanlah waktu yang terbuang.", author: "Bertrand Russell" },
+            { quote: "Be yourself; everyone else is already taken.", author: "Oscar Wilde" },
+            { quote: "Mati dengan kenangan, bukan mimpi.", author: "Anonim" },
+            { quote: "Inovasi membedakan antara seorang pemimpin dan pengikut.", author: "Steve Jobs" },
+            { quote: "Kebahagiaan tergantung pada diri kita sendiri.", author: "Aristoteles" },
+            { quote: "Tindakan adalah kunci dasar untuk semua kesuksesan.", author: "Pablo Picasso" },
+            { quote: "Jangan biarkan hari kemarin menyita terlalu banyak hari ini.", author: "Will Rogers" },
+            { quote: "Jika kamu menginginkan sesuatu yang belum pernah kamu miliki, kamu harus melakukan sesuatu yang belum pernah kamu lakukan.", author: "Thomas Jefferson" },
+            { quote: "Kesenangan dalam pekerjaan memberikan kesempurnaan pada hasil kerja.", author: "Aristoteles" },
+            { quote: "Satu-satunya cara untuk melakukan pekerjaan hebat adalah dengan mencintai apa yang kamu lakukan.", author: "Steve Jobs" },
+            { quote: "Ubah hidupmu hari ini. Jangan bertaruh pada masa depan, bertindaklah sekarang tanpa penundaan.", author: "Simone de Beauvoir" },
+            { quote: "Kamu kehilangan 100% dari tembakan yang tidak pernah kamu ambil.", author: "Wayne Gretzky" },
+            { quote: "Sukses adalah berjalan dari kegagalan ke kegagalan tanpa kehilangan antusiasme.", author: "Winston Churchill" },
+            { quote: "Jangan menghitung hari, buatlah hari-hari itu berarti.", author: "Muhammad Ali" },
+            { quote: "Kegagalan adalah batu loncatan menuju kesuksesan yang lebih besar.", author: "Anonim" },
+            { quote: "Jangan biarkan apa yang tidak dapat kamu lakukan mengganggu apa yang dapat kamu lakukan.", author: "John Wooden" },
+            { quote: "Rahasia untuk maju adalah dengan memulai.", author: "Mark Twain" },
+            { quote: "Kelemahan terbesar kita terletak pada menyerah. Cara paling pasti untuk sukses adalah selalu mencoba satu kali lagi.", author: "Thomas A. Edison" },
+            { quote: "Believe you can and you're halfway there.", author: "Theodore Roosevelt" },
+            { quote: "Masa depan adalah milik mereka yang percaya pada keindahan impian mereka.", author: "Eleanor Roosevelt" },
+            { quote: "Sulit untuk mengalahkan orang yang tidak pernah menyerah.", author: "Babe Ruth" },
+            { quote: "Satu-satunya batasan untuk realisasi kita tentang hari esok adalah keraguan kita tentang hari ini.", author: "Franklin D. Roosevelt" },
+            { quote: "Jangan takut melepaskan yang baik untuk mengejar yang terbaik.", author: "John D. Rockefeller" },
+            { quote: "Hidup adalah apa yang terjadi ketika kamu sibuk membuat rencana lain.", author: "John Lennon" },
+            { quote: "Cara terbaik untuk memprediksi masa depan adalah dengan menciptakannya.", author: "Peter Drucker" },
+            { quote: "Kamu tidak perlu menjadi hebat untuk memulai, tetapi kamu harus memulai untuk menjadi hebat.", author: "Zig Ziglar" },
+            { quote: "Fokus pada perjalanan, bukan tujuannya.", author: "Greg Anderson" },
+            { quote: "Menjadi berani berarti mencintai seseorang tanpa syarat tanpa mengharapkan apa pun sebagai balasan.", author: "Madonna" },
+            { quote: "Keberanian tidak selalu mengaum. Terkadang keberanian adalah suara pelan di akhir hari yang berkata, 'Saya akan mencoba lagi besok'.", author: "Mary Anne Radmacher" },
+            { quote: "Jika kamu tidak bisa menjelaskan secara sederhana, kamu belum memahaminya dengan cukup baik.", author: "Albert Einstein" },
+            { quote: "Jangan cari kesalahan, carilah jalan keluar.", author: "Henry Ford" },
+            { quote: "Hidup ini sangat sederhana, tetapi kita bersikeras membuatnya rumit.", author: "Konfusius" },
+            { quote: "Mimpi tidak akan berhasil kecuali jika kamu melakukannya.", author: "John C. Maxwell" },
+            { quote: "Ingatlah bahwa tidak mendapatkan apa yang kamu inginkan terkadang merupakan keberuntungan yang luar biasa.", author: "Dalai Lama" },
+            { quote: "Satu-satunya kebijaksanaan sejati adalah mengetahui bahwa kamu tidak tahu apa-apa.", author: "Socrates" },
+            { quote: "Investasi dalam pengetahuan menghasilkan bunga terbaik.", author: "Benjamin Franklin" },
+            { quote: "Jangan biarkan kebisingan pendapat orang lain menenggelamkan suara hatimu sendiri.", author: "Steve Jobs" },
+            { quote: "Pikiran adalah segalanya. Apa yang kamu pikirkan, itulah yang kamu jadikan.", author: "Buddha" },
+            { quote: "Kesabaran itu pahit, tetapi buahnya manis.", author: "Jean-Jacques Rousseau" },
+            { quote: "Tidak ada pelaut ulung yang lahir dari laut yang tenang.", author: "Pepatah" },
+            { quote: "Lakukan apa yang kamu bisa, dengan apa yang kamu miliki, di mana pun kamu berada.", author: "Theodore Roosevelt" },
+            { quote: "Tingkat kesuksesan tertinggi dicapai saat Anda mampu berdamai dengan kegagalan.", author: "Anonim" },
+            { quote: "Orang yang paling bahagia tidak memiliki segalanya yang terbaik, mereka hanya membuat yang terbaik dari segala yang mereka miliki.", author: "Unknown" },
+            { quote: "Kemarin saya pintar, jadi saya ingin mengubah dunia. Hari ini saya bijaksana, jadi saya mengubah diri saya sendiri.", author: "Rumi" },
+            { quote: "Disiplin adalah jembatan antara tujuan dan pencapaian.", author: "Jim Rohn" },
+            { quote: "Jangan pernah menyesali sehari pun dalam hidupmu. Hari-hari baik memberimu kebahagiaan dan hari-hari buruk memberimu pengalaman.", author: "Anonim" }
+        ]
+
+        const randomData = quotesDatabase[Math.floor(Math.random() * quotesDatabase.length)]
+
+        let caption = `┌˚₊ ๑│ ʀ ᴀ ɴ ᴅ ᴏ ᴍ  ǫ ᴜ ᴏ ᴛ ᴇ ꜱ │๑˚₊ ✍️\n` +
+                      `┇ \n` +
+                      `│ 💬 "${randomData.quote}"\n` +
+                      `│ \n` +
+                      `│ 👤 *Author:* _${randomData.author}_\n` +
+                      `┇ \n` +
+                      `└˚₊ ๑ ────────────── ๑˚₊\n` +
+                      `> © ERINE-AI`
+
+        await m.reply(caption)
+        await m.react('✅')
+
+    } catch (e) {
+        console.error('[LOCAL QUOTES ERROR]', e)
+        await m.react('❌')
+        m.reply(`┌˚₊ ๑│ ꜱ ʏ ꜱ ᴛ ᴇ ᴍ  ᴇ ʀ ʀ ᴏ ʀ │๑˚₊ ❌\n┇ Terjadi kesalahan sistem.\n┇ *Detail:* ${e.message || e}\n└˚₊ ๑ ────────────── ๑˚₊\n> © ERINE-AI`)
+    }
+}
+
+handler.help = ['randomquotes']
+handler.tags = ['tools', 'internet']
+handler.command = /^(randomquotes|quote|quotes)$/i
+handler.limit = true
+
+export default handler
