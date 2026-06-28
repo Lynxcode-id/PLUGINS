@@ -1,0 +1,107 @@
+/**
+ * ───「 FEATURE AUTHOR 」───
+ * 👤 Author : maxz str
+ * 📞 Contributor : +62851-4368-8664
+ * 📢 Channel : https://whatsapp.com/channel/0029VbAnuii6GcGCu73oep1i
+ * ⚠️ Note: Keep credit to respect the creator!
+ * ─────────────────────────
+ * 📝 Plugin: telegram-stalk
+ */
+
+let handler = async (m, { conn, text, usedPrefix, command }) => {
+    if (!text) {
+        return m.reply(`┌˚₊ ๑│ ᴛ ᴇ ʟ ᴇ   ꜱ ᴛ ᴀ ʟ ᴋ │๑˚₊ 🔍
+│ 
+│ ❌ *Username grup atau channel Telegram-nya mana cuy?*
+│ 
+│ 📌 *Cara pakai:*
+│ ${usedPrefix + command} namausernamegrup
+│ ${usedPrefix + command} namausernamechannel
+│ 
+│ ⚠️ *Catatan Penting:*
+│ • Hanya bisa untuk **grup atau channel yang publik**
+│ • Bukan untuk stalking akun personal/user biasa
+│ • Contoh: .telestalk telegram atau .telestalk durov
+└˚₊ ๑ ────────────── ๑˚₊
+> © ERINE-AI`)
+    }
+
+    let target = text.replace(/@/g, '').replace(/https:\/\/t.me\//g, '').trim()
+
+    await m.react('⏳')
+
+    try {
+        const apiUrl = `https://tele.dyz.my.id/api/stalk?target=${encodeURIComponent(target)}`
+        
+        const response = await fetch(apiUrl, {
+            method: 'GET',
+            headers: {
+                'Accept': 'application/json'
+            }
+        })
+
+        if (!response.ok) {
+            throw `Gagal terhubung ke server. Status HTTP: ${response.status}`
+        }
+
+        const result = await response.json()
+
+        if (result.status !== "success" || !result.data) {
+            throw result.msg || 'Gagal menarik data, pastikan grup/channel bersifat publik.'
+        }
+
+        const basic = result.data.basic
+        const fullChat = result.data.full?.fullChat
+
+        // Susun struktur caption menu biar clean dan profesional
+        let caption = `┌˚₊ ๑│ ᴛ ᴇ ʟ ᴇ   ꜱ ᴛ ᴀ ʟ ᴋ │๑˚₊ 🔍
+│ 
+│ 📝 *Nama:* ${basic.title || '-'}
+│ 👥 *Username:* @${basic.username || target}
+│ 🆔 *Chat ID:* ${basic.id || '-'}
+│ 📊 *Total Member:* ${fullChat?.participantsCount || 0} orang
+│ 🟢 *Online:* ${fullChat?.onlineCount || 0} orang
+┇ 
+│ 🤖 *Daftar Bot di Grup:*
+`
+
+        const bots = fullChat?.botInfo
+        if (bots && bots.length > 0) {
+            bots.forEach((bot, index) => {
+                caption += `│   ${index + 1}. ID: ${bot.userId}\n`
+                if (bot.description) {
+                    let descClean = bot.description.split('\n')[0].trim()
+                    caption += `│      *Desc:* ${descClean || '-'}\n`
+                }
+            })
+        } else {
+            caption += `│   Aman, tidak ada bot terdeteksi.\n`
+        }
+
+        caption += `┇ 
+│ ⚠️ *Catatan:* Hanya untuk grup/channel yang publik
+└˚₊ ๑ ────────────── ๑˚₊
+> © ERINE-AI`
+
+        await m.reply(caption.trim())
+        await m.react('✅')
+
+    } catch (e) {
+        console.error('[TELE STALK ERROR]', e)
+        await m.react('❌')
+        m.reply(`┌˚₊ ๑│ ꜱ ʏ ꜱ ᴛ ᴇ ᴍ   ᴇ ʀ ʀ ᴏ ʀ │๑˚₊ ❌
+│ Gagal melakukan stalk Telegram.
+│ *Detail:* ${e.message || e}
+│ 
+│ 💡 Tips: Pastikan username grup/channel benar dan bersifat publik.
+└˚₊ ๑ ────────────── ๑˚₊
+> © ERINE-AI`)
+    }
+}
+
+handler.help = ['telestalk <username_grup_atau_channel>']
+handler.tags = ['tools']
+handler.command = /^(telestalk|tlstalk|teleinfo)$/i
+handler.limit = true
+
+export default handler
