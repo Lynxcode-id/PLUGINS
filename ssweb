@@ -1,0 +1,36 @@
+/**
+ * ───「 FEATURE AUTHOR 」───
+ * 👤 Author     : Lynx Decode
+ * 📞 Contact    : +62 882-5804-1396
+ * 📢 Channel    : https://whatsapp.com/channel/0029VbAnuii6GcGCu73oep1i
+ * ⚠️ Note       : Keep credit to respect the creator!
+ * ─────────────────────────
+ * 📝 Plugin: SS Web (SynoxCloud API)
+ */
+
+let handler = async (m, { conn, text, usedPrefix, command }) => {
+    if (!text) return m.reply(`┌˚₊ ๑│ ꜱ ꜱ  ᴡ ᴇ ʙ │๑˚₊ 📸\n┇ \n│ ❌ *Link atau URL-nya mana cuy?*\n│ \n│ 📌 *Cara pakai:*\n│ ${usedPrefix + command} https://google.com\n┇ \n└˚₊ ๑ ────────────── ๑˚₊\n> © ERINE-AI`)
+
+    let url = /^https?:\/\//.test(text.trim()) ? text.trim() : 'https://' + text.trim()
+
+    await m.react('⏳')
+
+    try {
+        const apiUrl = `https://api.synoxcloud.xyz/tools/ssweb?url=${encodeURIComponent(url)}&width=1280`
+        const caption = `┌˚₊ ๑│ ꜱ ꜱ  ᴡ ᴇ ʙ │๑˚₊ 📸\n┇ \n│ ✅ *Sukses mengambil screenshot!*\n│ 🔗 *Target:* ${url}\n┇ \n└˚₊ ๑ ────────────── ๑˚₊\n> © ERINE-AI`
+
+        await conn.sendMessage(m.chat, { image: { url: apiUrl }, caption }, { quoted: m })
+        await m.react('✅')
+    } catch (error) {
+        console.error('[SSWEB SYNOX ERROR]', error)
+        await m.react('❌')
+        m.reply(`┌˚₊ ๑│ ꜱ ʏ ꜱ ᴛ ᴇ ᴍ  ᴇ ʀ ʀ ᴏ ʀ │๑˚₊ ❌\n┇ Terjadi kesalahan sistem.\n┇ *Detail:* ${error.message || String(error)}\n└˚₊ ๑ ────────────── ๑˚₊\n> © ERINE-AI`)
+    }
+}
+
+handler.help = ['ssweb <url>', 'ss <url>']
+handler.tags = ['tools']
+handler.command = /^(ssweb|ss)$/i
+handler.limit = true
+
+export default handler
