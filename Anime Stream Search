@@ -1,0 +1,76 @@
+-upplugin /**
+ * ───「 FEATURE AUTHOR 」───
+ * 👤 Author/Contributors   : Maxstore
+ * 📞 Contact    : +62 851-4368-8664
+ * 📢 Channel    :  -
+ * ⚠️ Note       : Keep credit to respect the creator!
+ * 📄 Sumber code : +62 851-4368-8664
+ * ─────────────────────────
+ * 📝 Plugin: Anime Stream Search (Felix Rdx API)
+ */
+
+import fetch from 'node-fetch'
+
+let handler = async (m, { conn, text, usedPrefix, command }) => {
+    if (!text) {
+        return m.reply(`┌˚₊ ๑│ ᴀ ɴ ɪ ᴍ ᴇ  ꜱ ᴇ ᴀ ʀ ᴄ ʜ │๑˚₊ 🔍\n┇ \n│ ❌ *Judul anime yang mau dicari mana cuy?*\n│ \n│ 📌 *Cara pakai:*\n│ ${usedPrefix + command} naruto\n┇ \n└˚₊ ๑ ────────────── ๑˚₊\n> © ERINE-AI`)
+    }
+
+    await m.react('⏳')
+
+    try {
+        const apiUrl = `https://felix-rdx-unlimited-free-apis.vercel.app/api/v1/api/anisearch?q=${encodeURIComponent(text)}`
+        const res = await fetch(apiUrl)
+        
+        if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`)
+        
+        const json = await res.json()
+
+        // Ambil data hasil pencarian pertama dari array
+        let result = json.result || json.data || json
+        if (Array.isArray(result)) result = result[0]
+
+        if (!result) {
+            throw new Error('Anime tidak ditemukan atau data kosong.')
+        }
+
+        // Parsing properti streaming video yang biasanya ada di API scraper video
+        let title = result.title || result.name || '-'
+        let url = result.url || result.link || result.streaming || ''
+        let thumbnail = result.image || result.thumbnail || result.image_url || result.img
+
+        let caption = `┌˚₊ ๑│ ᴀ ɴ ɪ ᴍ ᴇ  ꜱ ᴇ ᴀ ʀ ᴄ ʜ │๑˚₊ 🎬\n` +
+                      `┇ \n` +
+                      `│ 🎬 *Judul:* ${title}\n`
+
+        // Jika API menyediakan link streaming, tampilkan agar user bisa langsung klik
+        if (url) {
+            caption += `│ 🔗 *Link Watch:* ${url}\n`
+        }
+
+        caption += `┇ \n` +
+                   `└˚₊ ๑ ────────────── ๑˚₊\n` +
+                   `> © ERINE-AI`
+
+        // Jika ada thumbnail gambar, kirim gambarnya. Jika tidak, kirim teks saja
+        if (thumbnail && thumbnail.startsWith('http')) {
+            await conn.sendMessage(m.chat, { image: { url: thumbnail }, caption: caption }, { quoted: m })
+        } else {
+            await m.reply(caption)
+        }
+
+        await m.react('✅')
+
+    } catch (e) {
+        console.error('[ANISEARCH ERROR]', e)
+        await m.react('❌')
+        m.reply(`┌˚₊ ๑│ ꜱ ʏ ꜱ ᴛ ᴇ ᴍ  ᴇ ʀ ʀ ᴏ ʀ │๑˚₊ ❌\n┇ Terjadi kesalahan sistem.\n┇ *Detail:* ${e.message || e}\n└˚₊ ๑ ────────────── ๑˚₊\n> © ERINE-AI`)
+    }
+}
+
+handler.help = ['anisearch <judul>']
+handler.tags = ['anime', 'internet']
+handler.command = /^(anisearch|anime|searchanime)$/i
+handler.limit = true
+
+export default handler
