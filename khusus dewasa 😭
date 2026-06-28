@@ -1,0 +1,44 @@
+/**
+ * ───「 FEATURE AUTHOR 」───
+ * 👤 Author : maxz str
+ * 📞 Contributor : +62851-4368-8664
+ * 📢 Channel : https://whatsapp.com/channel/0029VbAnuii6GcGCu73oep1i
+ * ⚠️ Note: Keep credit to respect the creator!
+ * ─────────────────────────
+ * 📝 Plugin: Local Random Quotes Generator (Anti-Error)
+ */
+
+let handler = async (m, { conn, usedPrefix, command }) => {
+    await m.react('⏳')
+
+    try {
+        const imageUrl = 'https://felix-rdx-unlimited-free-apis.vercel.app/api/v1/api/nsfw/pussy'
+
+        let caption = `┌˚₊ ๑│ ɴ ꜱ ꜰ ᴡ  ᴘ ᴜ ꜱ ꜱ ʏ │๑˚₊ 🔞\n` +
+                      `┇ \n` +
+                      `│ 📌 *Command:* ${usedPrefix + command}\n` +
+                      `│ 🌐 *API Source:* Felix Rdx\n` +
+                      `┇ \n` +
+                      `└˚₊ ๑ ────────────── ๑˚₊\n` +
+                      `> © ERINE-AI`
+
+        await conn.sendMessage(m.chat, { 
+            image: { url: imageUrl }, 
+            caption: caption 
+        }, { quoted: m })
+
+        await m.react('✅')
+
+    } catch (e) {
+        console.error('[NSFW PUSSY ERROR]', e)
+        await m.react('❌')
+        m.reply(`┌˚₊ ๑│ ꜱ ʏ ꜱ ᴛ ᴇ ᴍ  ᴇ ʀ ʀ ᴏ ʀ │๑˚₊ ❌\n┇ Terjadi kesalahan sistem.\n┇ *Detail:* ${e.message || e}\n└˚₊ ๑ ────────────── ๑˚₊\n> © ERINE-AI`)
+    }
+}
+
+handler.help = ['pussy']
+handler.tags = ['nsfw']
+handler.command = /^(pussy)$/i
+handler.limit = true
+
+export default handler
