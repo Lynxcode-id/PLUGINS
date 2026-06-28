@@ -1,0 +1,156 @@
+/**
+ * ───「 FEATURE AUTHOR 」───
+ * 👤 Scraper    : ONLym-Api
+ * 👤 Integrator : Lynx Decode
+ * 📞 Contact    : +62 882-5804-1396
+ * 📢 Channel    : https://whatsapp.com/channel/0029VbAnuii6GcGCu73oep1i
+ * ⚠️ Note       : Keep credit to respect the creator!
+ * ─────────────────────────
+ * 📝 Plugin: YouTube MP4 Fast ~ Dont spam !!
+ */
+
+import axios from 'axios';
+
+function convertid(url) {
+    const regex = /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|embed|watch|shorts)\/|.*[?&]v=)|youtu\.be\/)([a-zA-Z0-9_-]{11})(?:[&?]|$)/;
+    const match = url.match(regex);
+    return match ? match[1] : null;
+}
+
+async function ytmp4is(url, format = 'mp4', customQuality = null) {
+    try {
+        const youtube_id = convertid(url);
+        if (!youtube_id) throw new Error('URL YouTube tidak valid. Silakan masukkan tautan video yang benar.');
+
+        const cleanFormat = format.toLowerCase().trim();
+
+        const converter = await axios.post('https://ht.flvto.online/converter', 
+            { id: youtube_id, fileType: cleanFormat },
+            {
+                headers: {
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:152.0) Gecko/20100101 Firefox/152.0',
+                    'Content-Type': 'application/json',
+                    'origin': 'https://ht.flvto.online',
+                    'referer': `https://ht.flvto.online/button?url=https://www.youtube.com/watch?v=${youtube_id}&fileType=${cleanFormat}`
+                }
+            }
+        );
+
+        const data = converter.data;
+        if (!data || (data.status !== 'ok' && data.status !== 'success')) {
+            throw new Error(data.msg || "Server flvto gagal memproses konversi.");
+        }
+
+        if (cleanFormat === 'mp3') {
+            let targetQuality = customQuality ? String(customQuality).toLowerCase().replace('kbps', '') : '320';
+            
+            return {
+                status: true,
+                creator: "ONLym-Api",
+                result: {
+                    videoId: youtube_id,
+                    title: data.title,
+                    type: 'mp3',
+                    quality: `${targetQuality}kbps`,
+                    filesize: data.filesize || 0,
+                    duration: data.duration || 0,
+                    download_url: data.link
+                }
+            };
+        }
+
+        if (cleanFormat === 'mp4') {
+            if (!Array.isArray(data.formats) || !data.formats.length) {
+                throw new Error("Gagal mengekstrak daftar format resolusi video dari server.");
+            }
+
+            let targetQuality = customQuality ? String(customQuality).toLowerCase().replace('p', '') + 'p' : '720p';
+
+            let selected = data.formats.find(v => v.qualityLabel === targetQuality);
+
+            // Fallback kalau resolusi yang dicari nggak ada, ambil yang paling tinggi
+            if (!selected) {
+                const sorted = data.formats.sort((a, b) => b.height - a.height);
+                selected = sorted[0];
+            }
+
+            return {
+                status: true,
+                creator: "ONLym-Api",
+                result: {
+                    videoId: youtube_id,
+                    title: data.title,
+                    type: 'mp4',
+                    quality: selected.qualityLabel,
+                    resolution: `${selected.width}x${selected.height}`,
+                    fps: selected.fps || 30,
+                    download_url: selected.url
+                }
+            };
+        }
+
+        throw new Error("Format tidak didukung. Gunakan 'mp3' atau 'mp4'.");
+
+    } catch (error) {
+        return {
+            status: false,
+            creator: "ONLym-Api",
+            message: error.message
+        };
+    }
+}
+
+let handler = async (m, { conn, text, usedPrefix, command }) => {
+    let url = text ? text : (m.quoted && m.quoted.text ? m.quoted.text : '')
+
+    if (!url) {
+        return m.reply(`┌˚₊ ๑│ ʏ ᴛ  ᴍ ᴘ 4  -  ᴠ 9 │๑˚₊ 🎥\n┇ \n│ ❌ *Link YouTube-nya mana cuy?*\n│ \n│ 📌 *Cara pakai:*\n│ ❦ ${usedPrefix + command} https://youtu.be/xxxx\n┇ \n└˚₊ ๑ ────────────── ๑˚₊\n> © ERINE-AI`)
+    }
+
+    if (!url.match(/(?:youtube\.com|youtu\.be)/i)) {
+        return m.reply(`❌ *Link tidak valid! Pastikan itu link YouTube cuy.*\n\n> © ERINE-AI`)
+    }
+
+    await m.react('⏳')
+
+    try {
+        // Nembak format 'mp4' dengan default quality 720p
+        const res = await ytmp4is(url.trim(), 'mp4', '720')
+
+        if (!res.status) {
+            throw new Error(res.message)
+        }
+
+        const data = res.result
+        if (!data.download_url) {
+            throw new Error('Gagal mendapatkan link download dari server API.')
+        }
+
+        let caption = `┌˚₊ ๑│ ʏ ᴛ  ᴍ ᴘ 4  -  ᴠ 9 │๑˚₊ 🎥\n┇ \n`
+        caption += `│ 📌 *Judul:* ${data.title}\n`
+        caption += `│ 🌟 *Kualitas:* ${data.quality}\n`
+        caption += `│ 📺 *Resolusi:* ${data.resolution}\n`
+        caption += `│ 🎞️ *FPS:* ${data.fps}\n`
+        caption += `┇ \n└˚₊ ๑ ────────────── ๑˚₊\n> © ERINE-AI`
+
+        // Kirim langsung sebagai video
+        await conn.sendMessage(m.chat, { 
+            video: { url: data.download_url }, 
+            caption: caption 
+        }, { quoted: m })
+        
+        await m.react('✅')
+
+    } catch (error) {
+        console.error('[YTMP4V9 ERROR]', error)
+        await m.react('❌')
+        m.reply(`┌˚₊ ๑│ ꜱ ʏ ꜱ ᴛ ᴇ ᴍ  ᴇ ʀ ʀ ᴏ ʀ │๑˚₊ ❌\n┇ Terjadi masalah saat mengunduh.\n┇ \n┇ *Detail:*\n┇ ${error.message || String(error)}\n└˚₊ ๑ ────────────── ๑˚₊\n> © ERINE-AI`)
+    }
+}
+
+handler.help = ['ytmp4 <url>']
+handler.tags = ['downloader']
+handler.command = /^ytmp4$/i
+handler.limit = true
+
+export default handler
