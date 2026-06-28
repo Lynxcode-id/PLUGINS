@@ -1,0 +1,44 @@
+/**
+ * ───「 FEATURE AUTHOR 」───
+ * 👤 Author : maxz str
+ * 📞 Contributor : +62851-4368-8664
+ * 📢 Channel : https://whatsapp.com/channel/0029VbAnuii6GcGCu73oep1i
+ * ⚠️ Note: Keep credit to respect the creator!
+ * ─────────────────────────
+ * 📝 Plugin: Fun - Cek Tolol Random Group Member (Enhanced)
+ */
+ 
+let handler = async (m, { conn, groupMetadata }) => {
+    if (!m.isGroup) return m.reply('❌ *Fitur ini hanya bisa digunakan di dalam grup, cuy!*')
+
+    let participants = groupMetadata.participants
+    if (!participants || participants.length === 0) return
+    let randomMember = participants[Math.floor(Math.random() * participants.length)].id
+    let persentase = Math.floor(Math.random() * 100) + 1
+    let status = 'Kurang asupan glukosa'
+    if (persentase > 85) status = 'Setara Albert Einstein / Elon Musk'
+    else if (persentase > 60) status = 'Otak encer, idaman guru'
+    else if (persentase > 35) status = 'Rata-rata manusia normal'
+    let caption = `┌˚₊ ๑│ ᴄ ᴇ ᴋ  ᴘ ɪ ɴ ᴛ ᴀ ʀ │๑˚₊ 💡\n` +
+                  `┇ \n` +
+                  `│ 🎯 *Target:* @${randomMember.split('@')[0]}\n` +
+                  `│ 📈 *Tingkat:* *${persentase}%* Pintar\n` +
+                  `│ 📊 *Status:* _${status}_\n` +
+                  `┇ \n` +
+                  `└˚₊ ๑ ────────────── ๑˚₊\n` +
+                  `> © ERINE-AI`
+
+    await conn.sendMessage(m.chat, {
+        text: caption,
+        contextInfo: {
+            mentionedJid: [randomMember]
+        }
+    }, { quoted: m })
+}
+
+handler.help = ['cekpintar']
+handler.tags = ['fun']
+handler.command = /^(cekpintar)$/i
+handler.group = true
+
+export default handler
