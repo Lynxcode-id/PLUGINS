@@ -1,0 +1,277 @@
+/**
+ * ───「 FEATURE AUTHOR 」───
+ * 👤 Scraper    : BINTANG
+ * 👤 Integrator : Lynx Decode
+ * 📞 Contact    : +62 882-5804-1396
+ * 📢 Channel    : https://whatsapp.com/channel/0029VbAnuii6GcGCu73oep1i
+ * ⚠️ Note       : Keep credit to respect the creator!
+ * ─────────────────────────
+ * 📝 Plugin: Murai Search & Trending
+ */
+
+import https from 'https';
+import zlib from 'zlib';
+
+class MuraiScraper {
+    constructor() {
+        this.baseUrl = 'https://murai.my';
+        this.userAgent = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
+    }
+
+    async search(keyword, options = {}) {
+        const page = options.page || 1;
+        const limit = options.limit || 10;
+        
+        const url = page === 1 
+            ? `${this.baseUrl}/?s=${encodeURIComponent(keyword)}`
+            : `${this.baseUrl}/page/${page}/?s=${encodeURIComponent(keyword)}`;
+        
+        const html = await this._fetchPage(url);
+        const articles = this._parseArticles(html);
+        const pagination = this._parsePagination(html);
+        
+        const keywordLower = keyword.toLowerCase();
+        const filteredArticles = articles.filter(a => {
+            if (!a || !a.title) return false;
+            return a.title.toLowerCase().includes(keywordLower);
+        });
+        
+        const limitedArticles = filteredArticles.slice(0, limit);
+        
+        return {
+            success: true,
+            author: 'BINTANG',
+            data: {
+                keyword: keyword,
+                page: page,
+                total_pages: pagination.totalPages || 1,
+                total_articles: filteredArticles.length,
+                articles: limitedArticles,
+            }
+        };
+    }
+
+    async getTrending() {
+        const html = await this._fetchPage(this.baseUrl);
+        const trending = this._parseTrending(html);
+        
+        return {
+            success: true,
+            author: 'BINTANG',
+            data: {
+                trending: trending,
+            }
+        };
+    }
+
+    _parseArticles(html) {
+        const articles = [];
+        const postsContainer = html.match(/<div[^>]*class="[^"]*jeg_posts[^"]*"[^>]*>([\s\S]*?)<\/div>\s*<\/div>\s*<\/div>\s*<div[^>]*class="[^"]*jeg_block_navigation[^"]*"[^>]*>/i);
+        const contentToSearch = postsContainer ? postsContainer[1] : html;
+        const articleRegex = /<article[^>]*class="[^"]*jeg_post[^"]*"[^>]*>([\s\S]*?)<\/article>/gi;
+        let match;
+        
+        while ((match = articleRegex.exec(contentToSearch)) !== null) {
+            const articleHtml = match[1];
+            const article = this._parseArticleItem(articleHtml);
+            if (article && article.title) articles.push(article);
+        }
+        
+        if (articles.length === 0) {
+            const altRegex = /<div[^>]*class="[^"]*jeg_postblock_content[^"]*"[^>]*>([\s\S]*?)<\/div>/gi;
+            let altMatch;
+            while ((altMatch = altRegex.exec(contentToSearch)) !== null) {
+                const content = altMatch[1];
+                const titleMatch = content.match(/<h3[^>]*class="[^"]*jeg_post_title[^"]*"[^>]*>[\s\S]*?<a[^>]*href="([^"]+)"[^>]*>([\s\S]*?)<\/a>[\s\S]*?<\/h3>/i);
+                if (titleMatch) {
+                    const title = this._cleanText(titleMatch[2]);
+                    if (title && title.length > 0) {
+                        articles.push({
+                            title: title,
+                            link: titleMatch[1].startsWith('http') ? titleMatch[1] : `${this.baseUrl}${titleMatch[1]}`,
+                            thumbnail: null,
+                            excerpt: '',
+                            author: '',
+                            date: ''
+                        });
+                    }
+                }
+            }
+        }
+        return articles;
+    }
+
+    _parseArticleItem(html) {
+        try {
+            const titleMatch = html.match(/<h3[^>]*class="[^"]*jeg_post_title[^"]*"[^>]*>[\s\S]*?<a[^>]*href="([^"]+)"[^>]*>([\s\S]*?)<\/a>[\s\S]*?<\/h3>/i);
+            if (!titleMatch) return null;
+            
+            const link = titleMatch[1].trim();
+            const title = this._cleanText(titleMatch[2]);
+            if (!title || title.length === 0) return null;
+            
+            const thumbMatch = html.match(/<img[^>]*data-src="([^"]+)"[^>]*>/i) || html.match(/<img[^>]*src="([^"]+)"[^>]*>/i);
+            const thumbnail = thumbMatch ? thumbMatch[1] : null;
+            
+            const excerptMatch = html.match(/<div[^>]*class="[^"]*jeg_post_excerpt[^"]*"[^>]*>[\s\S]*?<p>([\s\S]*?)<\/p>[\s\S]*?<\/div>/i);
+            const excerpt = excerptMatch ? this._cleanText(excerptMatch[1]) : '';
+            
+            const authorMatch = html.match(/<div[^>]*class="[^"]*jeg_meta_author[^"]*"[^>]*>[\s\S]*?<a[^>]*>([\s\S]*?)<\/a>[\s\S]*?<\/div>/i);
+            const author = authorMatch ? this._cleanText(authorMatch[1]) : '';
+            
+            const dateMatch = html.match(/<div[^>]*class="[^"]*jeg_meta_date[^"]*"[^>]*>[\s\S]*?<a[^>]*>([\s\S]*?)<\/a>[\s\S]*?<\/div>/i);
+            const date = dateMatch ? this._cleanText(dateMatch[1]) : '';
+            
+            return {
+                title: title,
+                link: link.startsWith('http') ? link : `${this.baseUrl}${link}`,
+                thumbnail: thumbnail ? (thumbnail.startsWith('http') ? thumbnail : `${this.baseUrl}${thumbnail}`) : null,
+                excerpt: excerpt,
+                author: author,
+                date: date
+            };
+        } catch (e) {
+            return null;
+        }
+    }
+
+    _parsePagination(html) {
+        const result = { totalPages: 1 };
+        const pageInfoMatch = html.match(/<span[^>]*class="[^"]*page_info[^"]*"[^>]*>Page\s*(\d+)\s*of\s*(\d+)/i);
+        if (pageInfoMatch) result.totalPages = parseInt(pageInfoMatch[2]) || 1;
+        return result;
+    }
+
+    _parseTrending(html) {
+        const trending = [];
+        const trendingSection = html.match(/<div[^>]*class="[^"]*jeg_postblock_31[^"]*trending[^"]*"[^>]*>([\s\S]*?)<\/div>\s*<\/div>\s*<\/div>/i);
+        if (!trendingSection) return trending;
+        
+        const sectionHtml = trendingSection[1];
+        const itemRegex = /<li>[\s\S]*?<span[^>]*class="[^"]*relatedIndex[^"]*"[^>]*>(\d+)<\/span>[\s\S]*?<a[^>]*href="([^"]+)"[^>]*>([\s\S]*?)<\/a>[\s\S]*?<\/li>/gi;
+        
+        let match;
+        while ((match = itemRegex.exec(sectionHtml)) !== null) {
+            const title = this._cleanText(match[3]);
+            if (title && title.length > 0) {
+                trending.push({
+                    rank: parseInt(match[1]),
+                    title: title,
+                    link: match[2].startsWith('http') ? match[2] : `${this.baseUrl}${match[2]}`
+                });
+            }
+        }
+        return trending;
+    }
+
+    _fetchPage(url) {
+        return new Promise((resolve, reject) => {
+            const parsedUrl = new URL(url);
+            const options = {
+                hostname: parsedUrl.hostname,
+                port: 443,
+                path: parsedUrl.pathname + parsedUrl.search,
+                method: 'GET',
+                headers: {
+                    'User-Agent': this.userAgent,
+                    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+                    'Accept-Language': 'en-US,en;q=0.9',
+                    'Accept-Encoding': 'gzip, deflate, br',
+                    'Connection': 'keep-alive',
+                }
+            };
+
+            const req = https.request(options, (res) => {
+                const chunks = [];
+                res.on('data', (chunk) => chunks.push(chunk));
+                res.on('end', () => {
+                    let buffer = Buffer.concat(chunks);
+                    const encoding = res.headers['content-encoding'];
+                    
+                    if (encoding === 'gzip') {
+                        zlib.gunzip(buffer, (err, decompressed) => {
+                            if (err) reject(new Error(`Gzip error: ${err.message}`));
+                            else resolve(decompressed.toString('utf-8'));
+                        });
+                    } else if (encoding === 'br') {
+                        zlib.brotliDecompress(buffer, (err, decompressed) => {
+                            if (err) reject(new Error(`Brotli error: ${err.message}`));
+                            else resolve(decompressed.toString('utf-8'));
+                        });
+                    } else {
+                        resolve(buffer.toString('utf-8'));
+                    }
+                });
+            });
+            req.on('error', reject);
+            req.end();
+        });
+    }
+
+    _cleanText(text) {
+        if (!text) return '';
+        return text.replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&').replace(/&quot;/g, '"').replace(/&#8220;/g, '"').replace(/&#8221;/g, '"').replace(/&#8216;/g, "'").replace(/&#8217;/g, "'").replace(/&#8230;/g, '...').replace(/&#038;/g, '&').replace(/\s+/g, ' ').trim();
+    }
+}
+
+let handler = async (m, { conn, text, usedPrefix, command }) => {
+    if (!text) {
+        return m.reply(`┌˚₊ ๑│ ᴍ ᴜ ʀ ᴀ ɪ  s ᴇ ᴀ ʀ ᴄ ʜ │๑˚₊ 📰\n┇ \n│ ❌ *Teks/Query mana cuy?*\n│ \n│ 📌 *Cara pakai:*\n│ ❦ ${usedPrefix + command} <query>\n│ ❦ ${usedPrefix + command} trending\n┇ \n└˚₊ ๑ ────────────── ๑˚₊\n> © ERINE-AI`)
+    }
+
+    await m.react('⏳')
+    const scraper = new MuraiScraper()
+    const isTrending = text.toLowerCase().trim() === 'trending'
+
+    try {
+        let result
+        let caption = `┌˚₊ ๑│ ᴍ ᴜ ʀ ᴀ ɪ  s ᴇ ᴀ ʀ ᴄ ʜ │๑˚₊ 📰\n┇ \n`
+        let firstThumb = null
+
+        if (isTrending) {
+            result = await scraper.getTrending()
+            if (!result.data.trending.length) throw new Error('Data trending tidak ditemukan.')
+            
+            caption += `│ 🔥 *Top Trending Murai.my*\n│ \n`
+            result.data.trending.slice(0, 10).forEach(item => {
+                caption += `│ *#${item.rank}* ${item.title}\n`
+                caption += `│ 🔗 ${item.link}\n│ \n`
+            })
+        } else {
+            result = await scraper.search(text)
+            if (!result.data.articles.length) throw new Error(`Artikel dengan query "${text}" tidak ditemukan.`)
+            
+            caption += `│ 🔍 *Hasil Pencarian: ${text}*\n│ \n`
+            firstThumb = result.data.articles[0].thumbnail
+
+            result.data.articles.forEach((item, i) => {
+                caption += `│ *${i + 1}. ${item.title}*\n`
+                if (item.author) caption += `│ 👤 *Author:* ${item.author}\n`
+                if (item.date) caption += `│ 📅 *Date:* ${item.date}\n`
+                if (item.excerpt) caption += `│ 📜 *Excerpt:* ${item.excerpt}\n`
+                caption += `│ 🔗 *Link:* ${item.link}\n│ \n`
+            })
+        }
+
+        caption += `┇ \n└˚₊ ๑ ────────────── ๑˚₊\n> © ERINE-AI`
+
+        if (firstThumb && !isTrending) {
+            await conn.sendMessage(m.chat, { image: { url: firstThumb }, caption }, { quoted: m })
+        } else {
+            await conn.sendMessage(m.chat, { text: caption }, { quoted: m })
+        }
+        await m.react('✅')
+
+    } catch (error) {
+        console.error('[MURAI ERROR]', error)
+        await m.react('❌')
+        m.reply(`┌˚₊ ๑│ ꜱ ʏ ꜱ ᴛ ᴇ ᴍ  ᴇ ʀ ʀ ᴏ ʀ │๑˚₊ ❌\n┇ Terjadi kesalahan sistem.\n┇ *Detail:* ${error.message || String(error)}\n└˚₊ ๑ ────────────── ๑˚₊\n> © ERINE-AI`)
+    }
+}
+
+handler.help = ['murai <query>', 'murai trending']
+handler.tags = ['search']
+handler.command = /^(murai|muraimy)$/i
+handler.limit = true
+
+export default handler
