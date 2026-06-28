@@ -1,0 +1,68 @@
+/**
+ * ───「 FEATURE AUTHOR 」───
+ * 👤 Author     : Lynx Decode
+ * 📞 Contact    : +62 882-5804-1396
+ * 📢 Channel    : https://whatsapp.com/channel/0029VbAnuii6GcGCu73oep1i
+ * ⚠️ Note       : Keep credit to respect the creator!
+ * ─────────────────────────
+ * 📝 Plugin: Image Upscaler (JereXD API)
+ * 📦 Npm       : npm i form-data axios
+ */
+
+import axios from 'axios'
+import FormData from 'form-data'
+
+let handler = async (m, { conn, usedPrefix, command }) => {
+    let q = m.quoted ? m.quoted : m
+    let mime = (q.msg || q).mimetype || ''
+
+    if (!/image\/(jpe?g|png|webp)/.test(mime)) {
+        return m.reply(`┌˚₊ ๑│ ɪ ᴍ ᴀ ɢ ᴇ  ᴜ ᴘ ꜱ ᴄ ᴀ ʟ ᴇ ʀ │๑˚₊ 🪄\n┇ \n│ ❌ *Reply atau kirim gambar cuy!*\n│ \n│ 📌 *Cara pakai:*\n│ Kirim/Reply gambar dengan caption:\n│ ${usedPrefix + command}\n┇ \n└˚₊ ๑ ────────────── ๑˚₊\n> © ERINE-AI`)
+    }
+
+    await m.react('⏳')
+
+    try {
+        let buffer = await q.download()
+        const form = new FormData()
+        form.append('file', buffer, { filename: 'image.jpg' })
+        form.append('scale', 'Super HD')
+
+        const { data } = await axios.post('https://api.jerexd.my.id/api/tools/hd?apikey=Lynxdecode', form, {
+            headers: {
+                ...form.getHeaders()
+            }
+        })
+
+        if (!data.status || !data.result?.upscaled_url) {
+            throw new Error('Gagal memproses gambar dari server API.')
+        }
+
+        let res = data.result
+        let caption = `┌˚₊ ๑│ ɪ ᴍ ᴀ ɢ ᴇ  ᴜ ᴘ ꜱ ᴄ ᴀ ʟ ᴇ ʀ │๑˚₊ 🪄\n` +
+                      `┇ \n` +
+                      `│ ✅ *Sukses memperjelas gambar!*\n` +
+                      `│ 🔎 *Scale:* ${res.scale_applied || '4x'}\n` +
+                      `│ ⚙️ *Engine:* ${res.engine || '-'}\n` +
+                      `┇ \n` +
+                      `└˚₊ ๑ ────────────── ๑˚₊\n` +
+                      `> © ERINE-AI`
+
+        await conn.sendMessage(m.chat, { image: { url: res.upscaled_url }, caption: caption }, { quoted: m })
+        await m.react('✅')
+
+    } catch (error) {
+        console.error('[HD ERROR]', error)
+        await m.react('❌')
+        
+        let errMsg = error.response?.data?.message || error.message || String(error)
+        m.reply(`┌˚₊ ๑│ ꜱ ʏ ꜱ ᴛ ᴇ ᴍ  ᴇ ʀ ʀ ᴏ ʀ │๑˚₊ ❌\n┇ Terjadi kesalahan sistem.\n┇ *Detail:* ${errMsg}\n└˚₊ ๑ ────────────── ๑˚₊\n> © ERINE-AI`)
+    }
+}
+
+handler.help = ['hd']
+handler.tags = ['tools', 'maker']
+handler.command = /^hd$/i
+handler.limit = true
+
+export default handler
