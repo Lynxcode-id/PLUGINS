@@ -1,0 +1,73 @@
+/**
+ * ───「 FEATURE AUTHOR 」───
+ * 👤 Author : maxz str
+ * 📞 Contributor : +62851-4368-8664
+ * 📢 Channel : https://whatsapp.com/channel/0029VbAnuii6GcGCu73oep1i
+ * ⚠️ Note: Keep credit to respect the creator!
+ * ─────────────────────────
+ * 📝 Plugin: tools-wqc
+ */
+ 
+import axios from 'axios'
+
+let handler = async (m, { conn, text, usedPrefix, command }) => {
+    if (!text) {
+        return m.reply(`┌˚₊ ๑│ ᴡ ǫ ᴄ  ꜰ ᴀ ᴋ ᴇ   ᴄ ʜ ᴀ ᴛ │๑˚₊ 🖼️\n│ \n│ ❌ *Pesan apa yang mau difake?*\n│ \n│ 📌 *Contoh:*\n│ ${usedPrefix + command} Halo bro, lagi apa?\n└˚₊ ๑ ────────────── ๑˚₊\n> © ERINE-AI`)
+    }
+
+    await m.react('⏳')
+
+    try {
+        const apikey = 'ApikeyMilikMaxz'
+        const params = new URLSearchParams({
+            name: 'Mark Zuckerberg',
+            number: '+62 851-1111-1111',
+            avatar: 'https://i.pinimg.com/736x/81/57/49/815749f7111a7c5bb91cb64758ae5f42.jpg',
+            verified: 'true',
+            message: text,
+            time: '14.25',
+            quoted: JSON.stringify({
+                name: 'neoxr',
+                verified: false,
+                number: '+62 898-7654-3210',
+                message: 'Fuck you ✨',
+                imageUrl: null
+            }),
+            reaction: JSON.stringify({
+                emoji: ['😐', '🤪', '😰', '💀'],
+                count: '29225'
+            }),
+            mode: 'dark',
+            apikey: apikey
+        })
+
+        const url = `https://api.neoxr.eu/api/wqc?${params.toString()}`
+
+        const { data } = await axios.get(url)
+
+        if (!data.status) {
+            throw data.msg || 'Gagal membuat fake quote dari server.'
+        }
+
+        const imageUrl = data.data.url
+
+        await conn.sendMessage(m.chat, {
+            image: { url: imageUrl },
+            caption: `┌˚₊ ๑│ ᴡ ǫ ᴄ  ꜰ ᴀ ᴋ ᴇ   ᴄ ʜ ᴀ ᴛ │๑˚₊ 🖼️\n│ \n│ ✅ *Fake quote berhasil dibuat!*\n└˚₊ ๑ ────────────── ๑˚₊\n> © ERINE-AI`
+        }, { quoted: m })
+
+        await m.react('✅')
+
+    } catch (e) {
+        console.error('[WQC ERROR]', e)
+        await m.react('❌')
+        m.reply(`┌˚₊ ๑│ ꜱ ʏ ꜱ ᴛ ᴇ ᴍ   ᴇ ʀ ʀ ᴏ ʀ │๑˚₊ ❌\n┇ Gagal membuat fake quote.\n┇ *Detail:* ${e.message || e}\n└˚₊ ๑ ────────────── ๑˚₊\n> © ERINE-AI`)
+    }
+}
+
+handler.help = ['wqc <pesan>', 'fakechat <pesan>']
+handler.tags = ['tools']
+handler.command = /^(wqc|fakechat|fakequote)$/i
+handler.limit = true
+
+export default handler
