@@ -9,7 +9,9 @@
  * 📦 Npm       : npm i iqc-canvas
  */
 
-import { generateIQC } from 'iqc-canvas'
+import { createRequire } from 'module'
+const require = createRequire(import.meta.url)
+const { generateIQC } = require('iqc-canvas')
 
 let handler = async (m, { conn, text, usedPrefix, command }) => {
     let mainText = text ? text : (m.quoted && m.quoted.text ? m.quoted.text : '')
@@ -27,8 +29,7 @@ let handler = async (m, { conn, text, usedPrefix, command }) => {
         
         let opts = {
             showPlusBtn: true,
-            // Explicitly dipasang biar nge-trigger fall-back
-            reactionEmojis: ['👍', '❤️', '😂', '😮', '😢', '🙏', '🤦']
+            reactionEmojis: ['🤓', '🔥', '😹', '⚡', '😎', '🗿',]
         }
 
         if (text && m.quoted && m.quoted.text) {
@@ -55,7 +56,7 @@ let handler = async (m, { conn, text, usedPrefix, command }) => {
 
 handler.help = ['iqccanvas <teks>']
 handler.tags = ['maker']
-handler.command = /^(iqccanvas)$/i
+handler.command = /^iqccanvas$/i
 handler.limit = true
 
 export default handler
