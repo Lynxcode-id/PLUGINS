@@ -1,0 +1,89 @@
+/**
+ * ───「 FEATURE AUTHOR 」───
+ * 👤 Author     : Lynx Decode
+ * 📞 Contact    : +62 882-5804-1396
+ * 📢 Channel    : https://whatsapp.com/channel/0029VbAnuii6GcGCu73oep1i
+ * ⚠️ Note       : Keep credit to respect the creator!
+ * ─────────────────────────
+ * 📝 Plugin: Blood Strike ID Stalker (Dunia Games API)
+ */
+
+import axios from 'axios'
+
+let handler = async (m, { text, usedPrefix, command }) => {
+    if (!text) {
+        return m.reply(`┌˚₊ ๑│ ʙ ʟ ᴏ ᴏ ᴅ   ꜱ ᴛ ʀ ɪ ᴋ ᴇ │๑˚₊ 🔫\n┇ \n│ ❌ *ID Game-nya mana cuy?*\n│ \n│ 📌 *Cara pakai:*\n│ ${usedPrefix + command} 12345678\n┇ \n└˚₊ ๑ ────────────── ๑˚₊\n> © ERINE-AI`)
+    }
+
+    const gameId = text.trim()
+    await m.react('⏳')
+
+    const headers = {
+        'User-Agent': 'Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Mobile Safari/149.0.0.0',
+        'Content-Type': 'application/json',
+        'x-device': 'ee8ef844-cc35-4521-94ec-8216d699716f',
+        'Ciam-Type': 'FR'
+    }
+
+    try {
+        const { data: tokenRes } = await axios.post(
+            'https://api.duniagames.co.id/api/item-catalog/v1/get-token',
+            { msisdn: '085817889864' },
+            { headers }
+        )
+
+        const sessionToken = tokenRes?.data?.token
+        if (!sessionToken) throw new Error('Gagal mendapatkan session token dari server.')
+
+        const { data: inquiry } = await axios.post(
+            'https://api.duniagames.co.id/api/transaction/v1/top-up/inquiry/store',
+            {
+                productId: 149,
+                itemId: 1654,
+                product_ref: "REG",
+                product_ref_denom: "REG",
+                catalogId: 2836,
+                paymentId: 7580,
+                gameId: gameId,
+                serverId: "0",
+                serverName: "Blood Strike",
+                campaignUrl: ""
+            },
+            {
+                headers: {
+                    ...headers,
+                    'x-token': sessionToken
+                }
+            }
+        )
+
+        const nickname = inquiry?.data?.gameDetail?.userName
+
+        if (!nickname) {
+            throw 'ID Game tidak ditemukan atau salah. Pastikan ID sudah benar!'
+        }
+
+        let caption = `┌˚₊ ๑│ ʙ ʟ ᴏ ᴏ ᴅ   ꜱ ᴛ ʀ ɪ ᴋ ᴇ │๑˚₊ 🔫\n┇ \n` +
+                      `│ 👤 *Nickname:* ${nickname}\n` +
+                      `│ 🆔 *User ID:* ${gameId}\n` +
+                      `│ 🎮 *Game:* Blood Strike\n` +
+                      `┇ \n` +
+                      `└˚₊ ๑ ────────────── ๑˚₊\n` +
+                      `> © ERINE-AI`
+
+        await m.reply(caption.trim())
+        await m.react('✅')
+
+    } catch (e) {
+        console.error('[BLOODSTRIKE STALK ERROR]', e)
+        await m.react('❌')
+        m.reply(`┌˚₊ ๑│ ꜱ ʏ ꜱ ᴛ ᴇ ᴍ   ᴇ ʀ ʀ ᴏ ʀ │๑˚₊ ❌\n┇ Gagal melakukan stalk akun.\n┇ *Detail:* ${e.message || e}\n└˚₊ ๑ ────────────── ๑˚₊\n> © ERINE-AI`)
+    }
+}
+
+handler.help = ['bloodstrike <id>', 'bsstalk <id>']
+handler.tags = ['tools', 'game']
+handler.command = /^(bloodstrike|bsstalk|cekbs)$/i
+handler.limit = true
+
+export default handler
