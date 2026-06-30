@@ -1,0 +1,85 @@
+/**
+ * ───「 FEATURE AUTHOR 」───
+ * 👤 Developer : Lynx Decode (INF Project)
+ * 📞 WhatsApp  : +62 882-5804-1396
+ * 📢 Channel   : https://whatsapp.com/channel/0029VbAnuii6GcGCu73oep1i
+ * ⚠️ Note      : Keep credit to respect the creator!
+ * ─────────────────────────
+ * 📝 Plugin: Spotify Play
+ * 📦 Module/Package : axios
+ */
+
+import axios from 'axios';
+
+let handler = async (m, { conn, text, prefix, command }) => {
+    if (!text) {
+        return m.reply(`┌˚₊ ๑│ ꜱ ᴘ ᴏ ᴛ ɪ ꜰ ʏ │๑˚₊ 🎵\n┇ \n│ ❌ *Judul lagunya mana cuy?*\n│ \n│ 📌 *Cara pakai:*\n│ Ketik perintah beserta judul lagunya:\n│ ❦ ${prefix || '.'}${command} a thousand years jvke\n┇ \n└˚₊ ๑ ────────────── ๑˚₊\n> © ERINE-AI`);
+    }
+
+    await m.react('🎶');
+
+    try {
+        const apiUrl = `https://api.azbry.com/api/download/spoplay?q=${encodeURIComponent(text)}`;
+        let res = await axios.get(apiUrl);
+        
+        if (!res.data || !res.data.status || !res.data.result) {
+            throw new Error('Lagu tidak ditemukan atau API sedang bermasalah.');
+        }
+
+        let track = res.data.result;
+        let durationMin = Math.floor(track.duration / 60);
+        let durationSec = Math.floor(track.duration % 60).toString().padStart(2, '0');
+
+        let caption = `┌˚₊ ๑│ ꜱ ᴘ ᴏ ᴛ ɪ ꜰ ʏ │๑˚₊ 🎵\n┇ \n`
+        caption += `│ 🎵 *Judul:* ${track.title}\n`
+        caption += `│ 👤 *Artis:* ${track.artist}\n`
+        caption += `│ 💿 *Album:* ${track.album || '-'}\n`
+        caption += `│ ⏱️ *Durasi:* ${durationMin}:${durationSec}\n`
+        caption += `┇ \n`
+        caption += `│ ⚡ _Sedang mengunduh audio, tunggu sebentar..._\n`
+        caption += `┇ \n└˚₊ ๑ ────────────── ๑˚₊\n> © ERINE-AI`
+
+        await conn.sendMessage(m.chat, {
+            image: { url: track.cover },
+            caption: caption,
+            contextInfo: {
+                isForwarded: true,
+                forwardedNewsletterMessageInfo: {
+                    newsletterJid: "120363400612665352@newsletter",
+                    newsletterName: "🌟 ᴇʀɪɴᴇ-ᴍᴅ ɪɴғᴏʀᴍᴀᴛɪᴏɴ",
+                    serverMessageId: -1
+                }
+            }
+        }, { quoted: m });
+
+        let audioRes = await axios.get(track.downloadLink, {
+            responseType: 'arraybuffer',
+            headers: {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+            }
+        });
+
+        let audioBuffer = Buffer.from(audioRes.data);
+
+        await conn.sendMessage(m.chat, {
+            audio: audioBuffer,
+            mimetype: 'audio/mpeg',
+            ptt: false,
+            fileName: `${track.title} - ${track.artist}.mp3`
+        }, { quoted: m });
+
+        await m.react('✅');
+
+    } catch (err) {
+        console.error("[SPOTIFY ERROR]", err.message);
+        await m.react('❌');
+        m.reply(`┌˚₊ ๑│ ꜱ ʏ ꜱ ᴛ ᴇ ᴍ  ᴇ ʀ ʀ ᴏ ʀ │๑˚₊ ❌\n┇ Gagal memproses lagu.\n┇ \n┇ *Detail:*\n┇ ${err.message || String(err)}\n└˚₊ ๑ ────────────── ๑˚₊\n> © ERINE-AI`);
+    }
+};
+
+handler.help = ['spotifyplay <judul>'];
+handler.tags = ['downloader'];
+handler.command = /^(spotifyplay|playspotify|splay|spplay)$/i;
+handler.limit = true;
+
+export default handler;
