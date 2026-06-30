@@ -1,0 +1,186 @@
+/**
+ * ───「 FEATURE AUTHOR 」───
+ * 👤 Author     : Maxz Str 
+ * 📞 Contact    : +62 859-7427-8171
+ * 📢 Channel    : https://whatsapp.com/channel/0029VbAnuii6GcGCu73oep1i
+ * ⚠️ Note       : Keep credit to respect the creator!
+ * ─────────────────────────
+ * 📝 Plugin: Play TikTok
+ * 📦 Module/Package : axios, @whiskeysockets/baileys
+ */
+
+import axios from 'axios'
+import { generateWAMessageFromContent, proto } from '@whiskeysockets/baileys'
+
+const TTSEARCH_API = 'https://api.azbry.com/api/search/ttsearch?q='
+
+function normalizeUrl(url) {
+    if (!url || typeof url !== 'string') return null
+    const matches = url.match(/https?:\/\//g) || []
+    if (matches.length <= 1) return url
+    const lastIndex = url.lastIndexOf('http')
+    return url.slice(lastIndex)
+}
+
+function normalizeNumber(value) {
+    const number = Number(value)
+    return Number.isFinite(number) ? number : 0
+}
+
+function normalizeItem(item) {
+    return {
+        title: item?.title || '',
+        cover: normalizeUrl(item?.cover),
+        originCover: normalizeUrl(item?.origin_cover),
+        link: normalizeUrl(item?.link),
+        watermarkLink: normalizeUrl(item?.watermark_link),
+        music: normalizeUrl(item?.music),
+        author: {
+            nickname: item?.author?.nickname || '',
+            avatar: normalizeUrl(item?.author?.avatar)
+        },
+        stats: {
+            plays: normalizeNumber(item?.stats?.plays),
+            likes: normalizeNumber(item?.stats?.likes),
+            comments: normalizeNumber(item?.stats?.comments),
+            shares: normalizeNumber(item?.stats?.shares)
+        }
+    }
+}
+
+async function tiktokSearchVideo(query) {
+    const { data } = await axios.get(`${TTSEARCH_API}${encodeURIComponent(query)}`, {
+        timeout: 30000,
+        headers: {
+            'user-agent': 'Mozilla/5.0'
+        }
+    })
+
+    if (!data?.status || !Array.isArray(data?.result)) {
+        throw new Error(data?.message || 'TikTok search gagal')
+    }
+
+    return data.result.map(normalizeItem).filter((item) => item.link)
+}
+
+function formatNumber(n) {
+  const value = Number(n) || 0;
+  if (value >= 1000000) return (value / 1000000).toFixed(1) + "M";
+  if (value >= 1000) return (value / 1000).toFixed(1) + "K";
+  return value.toString();
+}
+
+async function sendInteractiveButtons(conn, jid, title, text, footer, buttons, quoted) {
+    let msg = generateWAMessageFromContent(jid, {
+        viewOnceMessage: {
+            message: {
+                interactiveMessage: proto.Message.InteractiveMessage.fromObject({
+                    body: { text },
+                    footer: { text: footer },
+                    header: { title, hasMediaAttachment: false },
+                    nativeFlowMessage: {
+                        buttons: buttons
+                    }
+                })
+            }
+        }
+    }, { quoted });
+    return await conn.relayMessage(jid, msg.message, { messageId: msg.key.id });
+}
+
+let handler = async (m, { conn, text, usedPrefix, command }) => {
+  if (command === 'ttmusic' || command === 'playttmusic') {
+      let audioUrl = text ? text.trim() : ""
+      if (!audioUrl) return
+      await m.react("📥")
+      try {
+          await conn.sendFile(m.chat, audioUrl, 'music.mp3', '', m, null, { mimetype: 'audio/mp4' })
+          await m.react("✅")
+      } catch (err) {
+          console.error(err)
+          await m.react("❌")
+      }
+      return
+  }
+
+  const query = text ? text.trim() : "";
+
+  if (!query) {
+    return m.reply(
+      `🎵 *PLAY TIKTOK*\n\nFormat penggunaan:\n\`${usedPrefix + command} <pencarian/query>\``
+    );
+  }
+
+  await m.react("🔍");
+
+  try {
+    const videos = await tiktokSearchVideo(query);
+    if (!videos || videos.length === 0) {
+      await m.react("❌");
+      return m.reply(`❌ Tidak ditemukan video untuk: ${query}`);
+    }
+
+    const video = videos[0];
+    
+    let caption = `🎵 *PLAY TIKTOK*\n\n`;
+    caption += `*Judul:* ${video.title || "-"}\n`;
+    caption += `*Kreator:* ${video.author?.nickname || "-"}\n\n`;
+    caption += `*Statistik Video:*\n`;
+    caption += `• Tontonan: ${formatNumber(video.stats?.plays)}\n`;
+    caption += `• Suka: ${formatNumber(video.stats?.likes)}\n`;
+    caption += `• Komentar: ${formatNumber(video.stats?.comments)}\n`;
+    caption += `• Bagikan: ${formatNumber(video.stats?.shares)}`;
+
+    await conn.sendFile(m.chat, video.link, 'tiktok.mp4', caption, m, false, {
+      contextInfo: {
+        forwardingScore: 99,
+        isForwarded: true,
+      }
+    });
+
+    let buttons = [];
+
+    if (video.music) {
+        buttons.push({
+            name: "quick_reply",
+            buttonParamsJson: JSON.stringify({
+                display_text: "🎵 Ambil Audio/Musik",
+                id: `${usedPrefix}ttmusic ${video.music}`
+            })
+        });
+    }
+
+    if (video.link) {
+        buttons.push({
+            name: "cta_url",
+            buttonParamsJson: JSON.stringify({
+                display_text: "🌐 Buka Link Video",
+                url: video.link,
+                merchant_url: video.link
+            })
+        });
+    }
+
+    if (buttons.length > 0) {
+        await sendInteractiveButtons(
+            conn, m.chat, 
+            "✨ PILIHAN DOWNLOAD", 
+            "Gunakan tombol di bawah untuk mengunduh audio atau membuka tautan sumber video asli.", 
+            "» ᴇʀɪɴᴇ ᴘʀᴏᴊᴇᴄᴛ ᴍᴀɴᴀɢᴇᴍᴇɴᴛ «", 
+            buttons, m
+        );
+    }
+
+    await m.react("✅");
+  } catch (error) {
+    console.error(error);
+    await m.react("❌");
+    m.reply(`❌ Terjadi kesalahan saat memproses permintaan TikTok. Silakan coba kembali.`);
+  }
+}
+
+handler.help = ["playtiktok <query>", "ttplay <query>"]
+handler.tags = ["search"]
+handler.command = /^(playtiktok|ttplay|tiktokplay|ttmusic|playttmusic)$/i
+
+export default handler
