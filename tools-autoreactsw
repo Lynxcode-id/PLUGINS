@@ -1,0 +1,75 @@
+let handler = async (m, { conn, text, usedPrefix, command }) => {
+    global.autoReactSW = global.autoReactSW || { enabled: false, emoji: '🔥' }
+
+    let args = text ? text.trim().split(/\s+/) : []
+    let action = args[0] ? args[0].toLowerCase() : ''
+    let emoji = args[1] || '🔥'
+
+    let isEnable = /true|enable|(turn)?on|1/i.test(action || command)
+    let isDisable = /false|disable|(turn)?off|0/i.test(action || command)
+
+    if (!action && !/enable|disable/i.test(command)) {
+        return m.reply(
+            `👁️ *ᴀᴜᴛᴏ ʀᴇᴀᴄᴛ sᴛᴏʀʏ*\n\n` +
+            `> Status: *${global.autoReactSW.enabled ? '✅ ON' : '❌ OFF'}*\n` +
+            `> Emoji: *${global.autoReactSW.emoji}*\n\n` +
+            `*<b>ᴄᴀʀᴀ ᴘᴀᴋᴀɪ:</b>*\n` +
+            `> \`${usedPrefix + command} on\` — Aktifkan (emoji default 🔥)\n` +
+            `> \`${usedPrefix + command} on 😍\` — Aktifkan dengan emoji\n` +
+            `> \`${usedPrefix + command} off\` — Matikan`
+        )
+    }
+
+    if (action === 'on' || isEnable) {
+        let targetEmoji = isEnable && !args[1] ? global.autoReactSW.emoji : emoji
+        global.autoReactSW = { enabled: true, emoji: targetEmoji }
+        await m.react('✅')
+        return m.reply(
+            `✅ *ᴀᴜᴛᴏ ʀᴇᴀᴄᴛ sᴛᴏʀʏ ᴀᴋᴛɪꜰ*\n\n` +
+            `> Emoji: *${targetEmoji}*\n` +
+            `> Bot akan otomatis react semua story WA`
+        )
+    }
+
+    if (action === 'off' || isDisable) {
+        global.autoReactSW.enabled = false
+        await m.react('✅')
+        return m.reply(`❌ *ᴀᴜᴛᴏ ʀᴇᴀᴄᴛ sᴛᴏʀʏ ᴅɪᴍᴀᴛɪᴋᴀɴ*`)
+    }
+
+    return m.reply(`❌ Gunakan \`on\` atau \`off\``)
+}
+
+setTimeout(() => {
+    const sock = global.conn || global.sock
+    if (!sock || sock.ev._events['messages.upsert']?.hasInjectedReactSW) return
+
+    sock.ev.on('messages.upsert', async (upsert) => {
+        if (!global.autoReactSW?.enabled || upsert.type !== 'notify') return
+        for (let msg of upsert.messages) {
+            if (msg.key && msg.key.remoteJid === 'status@broadcast') {
+                try {
+                    await sock.sendMessage(msg.key.remoteJid, {
+                        react: {
+                            text: global.autoReactSW.emoji || '🔥',
+                            key: msg.key
+                        }
+                    }, { statusJidList: [msg.key.participant] })
+                    console.log(`[REACT-SOCKET] Memberikan react ${global.autoReactSW.emoji} ke SW: ${msg.pushName || 'Kontak'}`)
+                } catch (e) {
+                }
+            }
+        }
+    })
+
+    if (sock.ev._events['messages.upsert']) {
+        sock.ev._events['messages.upsert'].hasInjectedReactSW = true
+    }
+}, 5000)
+
+handler.help = ['autoreactsw <on/off>']
+handler.tags = ['owner']
+handler.command = /^(autoreactsw|autoreaksi|reactsw|autoreactstory|reactstory)$/i
+handler.owner = true
+
+export default handler
