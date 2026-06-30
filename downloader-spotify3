@@ -1,0 +1,170 @@
+/**
+ * ───「 FEATURE AUTHOR 」───
+ * 👤 Author     : Maxz Str - [ INF TEAM ]
+ * 📞 Contact    : +62 859-7427-8171
+ * 📢 Channel    : https://whatsapp.com/channel/0029VbAnuii6GcGCu73oep1i
+ * ⚠️ Note       : Keep credit to respect the creator!
+ * ─────────────────────────
+ * 📝 Plugin: Spotify Auto Search, Download + Ai engine clean layout
+ */
+
+import axios from "axios";
+import chatGpt from "../scrape/gpt.js";
+
+let handler = async (m, { conn, text, usedPrefix, command }) => {
+  const query = text ? text.trim() : "";
+  const botName = "ERINE-AI";
+  const FIREFLY_KEY = "OurinNextGen";
+
+  if (!query) {
+    return m.reply(
+      `┌─〔 *SPOTIFY AUTO PLAY* 〕─┐\n` +
+      `│\n` +
+      `│ 📌 *Format penggunaan:*\n` +
+      `│ \`${usedPrefix + command} <judul lagu / artis>\`\n` +
+      `│\n` +
+      `└───────────────────┘\n` +
+      `> © ᴇʀɪɴᴇ ᴘʀᴏᴊᴇᴄᴛ ᴍᴀɴᴀɢᴇᴍᴇɴᴛ`
+    );
+  }
+
+  await m.react("⚡");
+
+  try {
+    let metadata = {};
+    let audioLink = "";
+
+    try {
+      const azRes = await axios.get(`https://api.azbry.com/api/download/spoplay?q=${encodeURIComponent(query)}`, { timeout: 15000 });
+      
+      if (azRes.data?.status && azRes.data?.result) {
+        const az = azRes.data.result;
+        let rawDuration = az.duration || 0;
+        let durationMin = Math.floor(rawDuration > 1000 ? rawDuration / 60000 : rawDuration / 60);
+        let durationSec = Math.floor(rawDuration > 1000 ? (rawDuration % 60000) / 1000 : rawDuration % 60).toString().padStart(2, '0');
+
+        metadata = {
+          title: az.title || "-",
+          artist: az.artist || "-",
+          album: az.album || "Single Track",
+          duration: `${durationMin}:${durationSec}`,
+          release: az.releaseDate || az.release_date || null,
+          cover: az.cover || az.thumbnail || "https://files.catbox.moe/w89mby.jpg"
+        };
+        audioLink = az.rawLink || az.downloadLink;
+      }
+    } catch (e) {
+      console.log("Azbry Engine Down, melempar ke fallback...");
+    }
+
+    if (!audioLink) {
+      try {
+        const searchRes = await axios.get(`https://api.chigga.my.id/api/spotify-search?q=${encodeURIComponent(query)}`, { timeout: 15000 });
+        const tracks = searchRes.data?.result || searchRes.data?.data || [];
+        if (!tracks.length) throw new Error("Lagu tidak ditemukan.");
+        
+        const trackUrl = tracks[0].url || tracks[0].link;
+        const dlRes = await axios.get(`https://firefly.maiku.my.id/api/spomp3?apikey=${FIREFLY_KEY}&url=${encodeURIComponent(trackUrl)}`, { timeout: 25000 });
+        const fFly = dlRes.data?.data;
+        
+        if (!fFly?.dl) throw new Error("Gagal mengonversi file audio.");
+
+        metadata = {
+          title: fFly.title || tracks[0].title || query,
+          artist: fFly.artist || "Unknown Artist",
+          album: fFly.album || "Tracks",
+          duration: fFly.duration || "-",
+          release: fFly.releaseDate || null,
+          cover: fFly.thumbnail || "https://files.catbox.moe/w89mby.jpg"
+        };
+        audioLink = fFly.dl;
+      } catch (fallbackErr) {
+        throw new Error(`Semua server API sedang gangguan (504/Down). Coba lagi nanti.`);
+      }
+    }
+
+    let aiStory = "Gagal memuat kisah inspirasi lagu menggunakan AI.";
+    try {
+      const aiPrompt = `Berikan informasi singkat untuk lagu "${metadata.title}" oleh "${metadata.artist}". Tuliskan dalam maksimal 2-3 kalimat saja: 1. Kapan tanggal rilis pastinya. 2. Apa kisah inspirasi atau makna utama di balik pembuatan lagu ini. Jawab langsung tanpa sapaan pembuka, langsung ke intinya dengan gaya santai namun informatif.`;
+      
+      let responseGpt = await chatGpt(aiPrompt);
+      if (responseGpt) {
+        aiStory = responseGpt
+          .replace(/\[\d+\]/g, "") 
+          .replace(/\*\*/g, "")
+          .trim();
+      }
+    } catch (aiErr) {
+      console.log("ChatGPT gagal merespons cerita inspirasi.");
+    }
+
+    let formattedAiStory = aiStory
+      .split("\n")
+      .map(line => line.trim() ? `│ ${line}` : `│`)
+      .join("\n");
+
+    let rilisFinal = metadata.release && metadata.release !== "-" ? metadata.release : "Lihat pada detail AI di bawah";
+
+    let caption = `┌───〔 *SPOTIFY TRACK INFO* 〕───┐\n`;
+    caption += `│\n`;
+    caption += `│ 🎵 *Judul:* ${metadata.title}\n`;
+    caption += `│ 👤 *Artis:* ${metadata.artist}\n`;
+    caption += `│ 💿 *Album:* ${metadata.album}\n`;
+    caption += `│ ⏱️ *Durasi:* ${metadata.duration}\n`;
+    caption += `│ 📅 *Rilis:* ${rilisFinal}\n`;
+    caption += `│\n`;
+    caption += `├───〔 *💡 INSPIRASI & MAKNA* 〕───\n`;
+    caption += `│\n`;
+    caption += `${formattedAiStory}\n`;
+    caption += `│\n`;
+    caption += `└───━━━━━━━━━━━━━━━━━━━━━━━━───┘\n`;
+    caption += `> ⚡ _Audio sedang dikirim, harap tunggu..._\n\n`;
+    caption += `*» ᴇʀɪɴᴇ ᴘʀᴏᴊᴇᴄᴛ ᴍᴀɴᴀɢᴇᴍᴇɴᴛ «*`;
+
+    try {
+        await conn.sendMessage(m.chat, {
+            image: { url: metadata.cover },
+            caption: caption,
+            contextInfo: {
+                isForwarded: true,
+                forwardedNewsletterMessageInfo: {
+                    newsletterJid: "120363400612665352@newsletter",
+                    newsletterName: "🌟 ᴇʀɪɴᴇ-ᴍᴅ ɪɴғᴏʀᴍᴀᴛɪᴏɴ",
+                    serverMessageId: -1
+                }
+            }
+        }, { quoted: m });
+    } catch (e) {
+        await m.reply(caption);
+    }
+
+    try {
+        const audioRes = await axios.get(audioLink, { 
+          responseType: "arraybuffer",
+          timeout: 60000,
+          headers: { "User-Agent": "Mozilla/5.0" }
+        });
+        
+        await conn.sendMessage(m.chat, { 
+            audio: Buffer.from(audioRes.data), 
+            mimetype: "audio/mpeg", 
+            fileName: `${metadata.artist} - ${metadata.title}.mp3` 
+        }, { quoted: m });
+    } catch (audioErr) {
+        throw new Error(`Gagal mengunduh stream audio (API Timeout).`);
+    }
+
+    await m.react("✅");
+  } catch (err) {
+    console.error(err);
+    await m.react("❌");
+    m.reply(`❌ *Error:* ${err.message}`);
+  }
+};
+
+handler.help = ["splay3 <judul>"];
+handler.tags = ["downloader"];
+handler.command = /^splay3$/i;
+handler.limit = true;
+
+export default handler;
