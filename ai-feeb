@@ -1,0 +1,133 @@
+/**
+ * ───「 FEATURE AUTHOR 」───
+ * 👤 Author     : Maxz Str [ INF TEAM ]
+ * 📞 Contact    : +62 859-7427-8171
+ * 📢 Channel    : https://whatsapp.com/channel/0029VbAnuii6GcGCu73oep1i
+ * ⚠️ Note       : Keep credit to respect the creator!
+ * ─────────────────────────
+ * 📝 Plugin: FeelBetter AI Engine (ai-feeb.js)
+ */
+
+import axios from "axios";
+
+function makeMemoryId() {
+  const animals = ["owl", "fox", "cat", "wolf", "bear", "lion", "deer", "bird"];
+  const words = ["safe", "calm", "soft", "kind", "warm", "bright", "gentle"];
+  const word = words[Math.floor(Math.random() * words.length)];
+  const animal = animals[Math.floor(Math.random() * animals.length)];
+  const number = Math.floor(1000 + Math.random() * 9000);
+  return `${word}-${animal}-${number}`;
+}
+
+function parseChunk(line) {
+  let data = line.trim();
+  if (!data || data === "[DONE]") return "";
+  if (data.startsWith("data:")) data = data.slice(5).trim();
+  if (!data || data === "[DONE]") return "";
+
+  try {
+    const json = JSON.parse(data);
+    if (typeof json === "string") return json;
+    if (typeof json.content === "string") return json.content;
+    if (typeof json.text === "string") return json.text;
+    if (typeof json.delta === "string") return json.delta;
+    if (typeof json.message === "string") return json.message;
+    if (typeof json.response === "string") return json.response;
+    if (typeof json.answer === "string") return json.answer;
+    const openAiContent = json.choices?.[0]?.delta?.content;
+    if (typeof openAiContent === "string") return openAiContent;
+    return "";
+  } catch {
+    return data;
+  }
+}
+
+let handler = async (m, { conn, text, usedPrefix, command }) => {
+    const headerUI = "┌˚₊ ๑│ ᴇ ʀ ɪ ɴ ᴇ - ᴀ ɪ  ғ ᴇ ᴇ ʙ │๑˚₊";
+    const hrUI = "└˚₊ ๑ ────────────── ๑˚₊";
+    const footerUI = "> © ᴇʀɪɴᴇ ᴘʀᴏᴊᴇᴄᴛ ᴍᴀɴᴀɢᴇᴍᴇɴᴛ";
+
+    if (!text) {
+        return m.reply(`${headerUI} ❌\n┇ \n│ Halo kak! Ada yang bisa FeelBetterBot bantu?\n│ Mau berbagi cerita atau keluh kesah?\n│ *Contoh:* ${usedPrefix + command} lagi sedih nih\n┇ \n${hrUI}\n${footerUI}`);
+    }
+
+    try {
+        await m.react('⏳');
+
+        const API = "https://feelbetterbot.com/";
+        const SYSTEM_MESSAGE = "Kamu adalah asisten AI bernama FeelBetterBot yang dibuat oleh Ditzzx. Ikuti bahasa yang digunakan user dalam percakapan. Jika user memakai bahasa Indonesia, jawab dalam bahasa Indonesia yang natural, santai, jelas, hangat, penuh empati, dan mudah dipahami. Jangan tiba-tiba pindah bahasa kecuali user memintanya. Jika user bertanya siapa pembuatmu, penciptamu, developermu, atau siapa yang membuatmu, jawab bahwa pembuatmu adalah Ditzzx.";
+        const DEFAULT_ASSISTANT = "Hi, I'm FeelBetterBot — I'm here to listen and help you carry whatever feels heavy, without judgment. I draw on gentle, proven ways of working through hard things, but mostly I just want to understand what you're going through. So, how are you doing right now?";
+
+        const memoryId = makeMemoryId();
+        const messages = [
+            { role: "system", content: SYSTEM_MESSAGE },
+            { role: "assistant", content: DEFAULT_ASSISTANT },
+            { role: "user", content: text },
+        ];
+
+        const response = await axios({
+            method: "POST",
+            url: API,
+            data: { messages },
+            headers: {
+                "sec-ch-ua-platform": `"Android"`,
+                "user-agent": "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Mobile Safari/537.36",
+                "content-type": "application/json",
+                accept: "*/*",
+                origin: "https://feelbetterbot.com",
+                referer: "https://feelbetterbot.com/",
+                cookie: `feelbet-memory=${memoryId}`
+            },
+            responseType: "stream"
+        });
+
+        let answer = "";
+
+        await new Promise((resolve, reject) => {
+            let buffer = "";
+            response.data.on("data", (chunk) => {
+                buffer += chunk.toString();
+                const lines = buffer.split("\n");
+                buffer = lines.pop() || "";
+
+                for (const rawLine of lines) {
+                    const cleanChunk = parseChunk(rawLine);
+                    if (cleanChunk) answer += cleanChunk;
+                }
+            });
+
+            response.data.on("end", () => {
+                if (buffer.trim()) {
+                    const cleanChunk = parseChunk(buffer);
+                    if (cleanChunk) answer += cleanChunk;
+                }
+                resolve();
+            });
+
+            response.data.on("error", (err) => reject(err));
+        });
+
+        if (!answer.trim()) throw new Error("Gagal mendapatkan balasan dari server FeelBetter.");
+
+        let replyText = `${headerUI} 💚\n┇ \n${answer.trim()}\n┇ \n${hrUI}\n${footerUI}`;
+
+        if (replyText.length > 4096) {
+            replyText = replyText.slice(0, 4092) + "...";
+        }
+
+        await conn.sendMessage(m.chat, { text: replyText }, { quoted: m });
+        await m.react('✅');
+
+    } catch (e) {
+        console.error(e);
+        await m.react('❌');
+        m.reply(`${headerUI} ❌\n┇ \n│ Maaf kak, terjadi kesalahan pada server FeelBetter.\n│ ${e.message}\n┇ \n${hrUI}\n${footerUI}`);
+    }
+}
+
+handler.help = ['feeb <pertanyaan>']
+handler.tags = ['ai']
+handler.command = /^(feeb|feelbetter|curhat)$/i
+handler.limit = true
+
+export default handler;
