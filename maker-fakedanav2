@@ -1,0 +1,77 @@
+/**
+ * ───「 FEATURE AUTHOR 」───
+ * 👤 Developer : Lynx Decode
+ * 📢 Channel   : https://whatsapp.com/channel/0029VbAnuii6GcGCu73oep1i
+ * ─────────────────────────
+ * 📝 Plugin: Fake Dana Maker 3 Anti Spam system
+ */
+
+import fetch from 'node-fetch'
+
+global.fakedana3_cd = global.fakedana3_cd || {}
+
+let handler = async (m, { conn, text, usedPrefix, command }) => {
+    let userCd = global.fakedana3_cd[m.sender] || []
+    let now = Date.now()
+    
+    userCd = userCd.filter(time => now - time < 120000)
+    
+    if (userCd.length >= 5) {
+        let remaining = Math.ceil((120000 - (now - userCd[0])) / 1000)
+        return m.reply(`┌˚₊ ๑│ ᴄ ᴏ ᴏ ʟ ᴅ ᴏ ᴡ ɴ │๑˚₊ ⏳\n┇ \n│ ❌ *Limit penggunaan tercapai!*\n│ Lu udah make fitur ini 5 kali dalam 2 menit terakhir.\n│ \n│ ⏱️ *Tunggu ${remaining} detik lagi* ya cuy biar IP lu ga diblokir API.\n┇ \n└˚₊ ๑ ────────────── ๑˚₊\n> © ERINE-AI`)
+    }
+
+    if (!text) {
+        return m.reply(`┌˚₊ ๑│ ꜰ ᴀ ᴋ ᴇ  ᴅ ᴀ ɴ ᴀ │๑˚₊ 💸\n┇ \n│ ❌ *Nominalnya berapa cuy?*\n│ \n│ 📌 *Cara pakai:*\n│ ❦ ${usedPrefix + command} 150000\n┇ \n└˚₊ ๑ ────────────── ๑˚₊\n> © ERINE-AI`)
+    }
+
+    if (isNaN(text)) {
+        return m.reply(`❌ *Masukkan angka yang valid cuy, jangan pakai huruf/simbol!*\n\n> © ERINE-AI`)
+    }
+
+    userCd.push(now)
+    global.fakedana3_cd[m.sender] = userCd
+
+    await m.react('⏳')
+
+    try {
+        const nominal = encodeURIComponent(text.trim())
+        const apiUrl = `https://api-xemoz-official.my.id/api/maker/fake-dana.php?nominal=${nominal}`
+
+        const response = await fetch(apiUrl, {
+            headers: {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+                'Referer': 'https://api-xemoz-official.my.id/',
+                'Accept': 'image/png,image/jpeg,image/webp,image/*,*/*;q=0.8',
+                'Connection': 'keep-alive'
+            }
+        })
+
+        if (!response.ok) throw new Error(`Server API merespon dengan HTTP ${response.status}`)
+        
+        const buffer = await response.buffer()
+
+        let caption = `┌˚₊ ๑│ ꜰ ᴀ ᴋ ᴇ  ᴅ ᴀ ɴ ᴀ │๑˚₊ 💸\n┇ \n`
+        caption += `│ ✅ *Berhasil membuat struk Fake Dana!*\n`
+        caption += `│ 💰 *Nominal:* Rp ${text}\n`
+        caption += `┇ \n└˚₊ ๑ ────────────── ๑˚₊\n> © ERINE-AI`
+
+        await conn.sendMessage(m.chat, { 
+            image: buffer, 
+            caption: caption 
+        }, { quoted: m })
+
+        await m.react('✅')
+    } catch (error) {
+        console.error('[FAKEDANA ERROR]', error)
+        await m.react('❌')
+        m.reply(`┌˚₊ ๑│ ꜱ ʏ ꜱ ᴛ ᴇ ᴍ  ᴇ ʀ ʀ ᴏ ʀ │๑˚₊ ❌\n┇ Gagal membuat fake dana.\n┇ \n┇ *Detail:*\n┇ ${error.message || String(error)}\n└˚₊ ๑ ────────────── ๑˚₊\n> © ERINE-AI`)
+    }
+}
+
+handler.help = ['fakedana <nominal>']
+handler.tags = ['maker']
+handler.command = /^(fakedana)$/i
+handler.limit = true
+
+export default handler
