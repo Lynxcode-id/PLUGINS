@@ -1,0 +1,74 @@
+/**
+ * ───「 FEATURE AUTHOR 」───
+ * 👤 Author     : Maxz Str 
+ * 📞 Contact    : +62 859-7427-8171
+ * 📢 Channel    : https://whatsapp.com/channel/0029VbAnuii6GcGCu73oep1i
+ * ⚠️ Note       : Keep credit to respect the creator!
+ * ─────────────────────────
+ * 📝 Plugin: Auto Read Status / Story
+ * 📦 Module/Package : None
+ */
+
+let handler = async (m, { conn, text, usedPrefix, command }) => {
+    global.autoReadSW = global.autoReadSW || false
+
+    let action = text ? text.trim().toLowerCase() : ''
+    let isEnable = /true|enable|(turn)?on|1/i.test(action || command)
+    let isDisable = /false|disable|(turn)?off|0/i.test(action || command)
+
+    if (!action && !/enable|disable/i.test(command)) {
+        return m.reply(
+            `┌˚₊ ๑│  ᴀ ᴜ ᴛ ᴏ  ʀ ᴇ ᴀ ᴅ  s ᴡ  │๑˚₊ 👁️\n` +
+            `┇ \n` +
+            `│ *Status:* ${global.autoReadSW ? '✅ ON (Aktif)' : '❌ OFF (Mati)'}\n` +
+            `│ \n` +
+            `│ 📌 *Cara pakai:*\n` +
+            `│ \`${usedPrefix + command} on\` — Aktifkan\n` +
+            `│ \`${usedPrefix + command} off\` — Matikan\n` +
+            `┇ \n` +
+            `└˚₊ ๑ ────────────── ๑˚₊\n` +
+            `> © ERINE-AI`
+        )
+    }
+
+    if (action === 'on' || isEnable) {
+        global.autoReadSW = true
+        await m.react('✅')
+        return m.reply(`✅ *Auto Read Story Diaktifkan!*`)
+    }
+
+    if (action === 'off' || isDisable) {
+        global.autoReadSW = false
+        await m.react('✅')
+        return m.reply(`❌ *Auto Read Story Dimatikan!*`)
+    }
+}
+
+setTimeout(() => {
+    const sock = global.conn || global.sock
+    if (!sock || sock.ev._events['messages.upsert']?.hasInjectedSW) return
+
+    sock.ev.on('messages.upsert', async (upsert) => {
+        if (!global.autoReadSW || upsert.type !== 'notify') return
+        for (let msg of upsert.messages) {
+            if (msg.key && msg.key.remoteJid === 'status@broadcast') {
+                try {
+                    await sock.readMessages([msg.key])
+                    console.log(`[STORY-SOCKET] Membaca SW dari: ${msg.pushName || 'Kontak'}`)
+                } catch (e) {
+                }
+            }
+        }
+    })
+    
+    if (sock.ev._events['messages.upsert']) {
+        sock.ev._events['messages.upsert'].hasInjectedSW = true
+    }
+}, 5000)
+
+handler.help = ['autoreadsw <on/off>']
+handler.tags = ['owner']
+handler.command = /^(autoreadsw|autoreadstory|readstory|bacasw|readsw)$/i
+handler.owner = true
+
+export default handler
