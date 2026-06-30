@@ -1,0 +1,144 @@
+/**
+ * ───「 FEATURE AUTHOR 」───
+ * 👤 Developer : Lynx Decode
+ * 📢 Channel   : https://whatsapp.com/channel/0029VbAnuii6GcGCu73oep1i
+ * ─────────────────────────
+ * 📝 Plugin: TinyPNG (Image Compressor)
+ */
+
+import fetch from 'node-fetch'
+import { CookieJar } from 'tough-cookie'
+import makeFetchCookie from 'fetch-cookie'
+
+const jar = new CookieJar()
+const fetchWithCookies = makeFetchCookie(fetch, jar)
+
+async function tinyPng(buffer, mime) {
+    await fetchWithCookies('https://tinypng.com/', {
+        headers: {
+            'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+            'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8'
+        }
+    })
+
+    const allowedMimes = {
+        'image/png': 'image/png',
+        'image/jpeg': 'image/jpeg',
+        'image/webp': 'image/webp',
+        'image/avif': 'image/avif'
+    }
+
+    const originalType = allowedMimes[mime] || 'image/png'
+
+    const upload = await fetchWithCookies('https://tinypng.com/backend/opt/store', {
+        method: 'POST',
+        headers: {
+            'accept': 'application/json, text/plain, */*',
+            'content-type': 'application/octet-stream',
+            'origin': 'https://tinypng.com',
+            'referer': 'https://tinypng.com/',
+            'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36'
+        },
+        body: buffer
+    })
+
+    if (!upload.ok) throw new Error(await upload.text())
+
+    const uploaded = await upload.json()
+
+    const processRes = await fetchWithCookies('https://tinypng.com/backend/opt/process', {
+        method: 'POST',
+        headers: {
+            'accept': 'application/json, text/plain, */*',
+            'content-type': 'application/json',
+            'origin': 'https://tinypng.com',
+            'referer': 'https://tinypng.com/',
+            'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36'
+        },
+        body: JSON.stringify({
+            key: uploaded.key,
+            originalType: originalType,
+            originalSize: buffer.length
+        })
+    })
+
+    if (!processRes.ok) throw new Error(await processRes.text())
+
+    const result = await processRes.json()
+    const resultUrl = result.url || result.output?.url
+
+    const outRes = await fetchWithCookies(resultUrl, {
+        headers: {
+            'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+            'referer': 'https://tinypng.com/'
+        }
+    })
+    const outBuffer = await outRes.buffer()
+
+    const inSize = buffer.length
+    const outSize = outBuffer.length
+    const ratio = (100 - ((outSize / inSize) * 100)).toFixed(2)
+
+    return {
+        status: true,
+        result_url: resultUrl,
+        buffer: outBuffer,
+        input_size: inSize,
+        output_size: outSize,
+        ratio: ratio
+    }
+}
+
+function formatSize(bytes) {
+    if (!bytes || isNaN(bytes)) return '0 B'
+    const k = 1024
+    const sizes = ['B', 'KB', 'MB', 'GB', 'TB']
+    const i = Math.floor(Math.log(bytes) / Math.log(k))
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
+}
+
+let handler = async (m, { conn, usedPrefix, command }) => {
+    let q = m.quoted ? m.quoted : m
+    let mime = (q.msg || q).mimetype || ''
+
+    if (!mime.includes('image')) {
+        return m.reply(`┌˚₊ ๑│ ᴛ ɪ ɴ ʏ ᴘ ɴ ɢ │๑˚₊ 🖼️\n┇ \n│ ❌ *Fotonya mana cuy?*\n│ \n│ 📌 *Cara pakai:*\n│ Balas (reply) foto yang mau dikompres, lalu ketik:\n│ ❦ ${usedPrefix + command}\n┇ \n└˚₊ ๑ ────────────── ๑˚₊\n> © ERINE-AI`)
+    }
+
+    await m.react('⏳')
+
+    try {
+        let media = await q.download()
+        
+        let res = await tinyPng(media, mime)
+
+        if (!res.status || !res.buffer) {
+            throw new Error('Gagal mengkompres gambar dari server TinyPNG.')
+        }
+
+        let caption = `┌˚₊ ๑│ ᴛ ɪ ɴ ʏ ᴘ ɴ ɢ │๑˚₊ 🖼️\n┇ \n`
+        caption += `│ ✅ *Berhasil kompres foto!*\n`
+        caption += `│ 📉 *Ukuran Awal:* ${formatSize(res.input_size)}\n`
+        caption += `│ 📉 *Ukuran Akhir:* ${formatSize(res.output_size)}\n`
+        caption += `│ 📊 *Hemat:* ${res.ratio}%\n`
+        caption += `┇ \n└˚₊ ๑ ────────────── ๑˚₊\n> © ERINE-AI`
+
+        await conn.sendMessage(m.chat, { 
+            image: res.buffer, 
+            caption: caption 
+        }, { quoted: m })
+
+        await m.react('✅')
+    } catch (error) {
+        console.error('[TINYPNG ERROR]', error)
+        await m.react('❌')
+        m.reply(`┌˚₊ ๑│ ꜱ ʏ ꜱ ᴛ ᴇ ᴍ  ᴇ ʀ ʀ ᴏ ʀ │๑˚₊ ❌\n┇ Gagal memproses gambar.\n┇ \n┇ *Detail:*\n┇ ${error.message || String(error)}\n└˚₊ ๑ ────────────── ๑˚₊\n> © ERINE-AI`)
+    }
+}
+
+handler.help = ['tinypng', 'compress']
+handler.tags = ['tools']
+handler.command = /^(tinypng|compress|kmpres)$/i
+handler.limit = true
+
+export default handler
