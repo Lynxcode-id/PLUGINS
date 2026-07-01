@@ -1,0 +1,69 @@
+/**
+ * ─── 「 ERINE MD 」 ───
+ * 👤 Author : Maxz
+ * ────────────────────────────
+ * 📝 Plugin: Sulap Kick - ErineMD V6 NO TAG
+ */
+
+if (!global.erineSulap) global.erineSulap = new Map()
+const sleep = ms => new Promise(r => setTimeout(r, ms))
+
+let handler = async (m, { conn, usedPrefix, command }) => {
+    if (!m.isGroup) return m.reply(`❌ Khusus grup`)
+
+    await m.react('🎩')
+    const msg = await conn.sendMessage(m.chat, {
+        text: `🎪 **
+│
+│ Reply pesan TARGET yang mau dihilangkan
+│ Gak usah tag. Tinggal reply aja.
+│
+│ ⏳ 2 menit
+└─★ ErineMD ★`,
+        mentions: [m.sender]
+    })
+
+    global.erineSulap.set(msg.key.id, { admin: m.sender, chat: m.chat, expired: Date.now() + 120000 })
+    setTimeout(() => global.erineSulap.delete(msg.key.id), 120000)
+}
+
+handler.before = async (m, { conn }) => {
+    if (!m.quoted) return false
+    const session = global.erineSulap.get(m.quoted.id)
+    if (!session || session.chat!== m.chat || session.admin!== m.sender || Date.now() > session.expired) {
+        if(session) global.erineSulap.delete(m.quoted.id)
+        return false
+    }
+
+    const target = m.quoted.sender // AMBIL DARI PENGIRIM PESAN YANG DI-REPLY
+    global.erineSulap.delete(m.quoted.id)
+
+    const bot = conn.user.id
+    const { participants } = await conn.groupMetadata(m.chat)
+    const member = participants.find(p => p.id === target)
+
+    if (target === bot) return m.reply(`🎭 Bot kebal`)
+    if (target === m.sender) return m.reply(`🎭 Gak bisa diri sendiri`)
+    if (!member) return m.reply(`👻 Bukan member`)
+    if (member.admin) return m.reply(`🛡️ Admin kebal`)
+
+    await m.react('🪄')
+    await conn.sendMessage(m.chat, { text: `🪄 Abrakadabra... @${target.split('@')[0]}`, mentions: [target] })
+    await sleep(1000)
+    await conn.groupParticipantsUpdate(m.chat, [target], 'remove')
+    await conn.sendMessage(m.chat, {
+        text: `💨 *POOF!* @${target.split('@')[0]} hilang\n🎩 Pesulap: @${m.sender.split('@')[0]}\n└─★ ErineMD ★`,
+        mentions: [target, m.sender]
+    })
+    return true
+}
+
+handler.help = ['sulap']
+handler.tags = ['group']
+handler.command = /^(sulap)$/i
+handler.group = true
+handler.admin = true
+handler.botAdmin = true
+handler.cooldown = 60
+
+export default handler
