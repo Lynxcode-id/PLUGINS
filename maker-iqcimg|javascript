@@ -1,0 +1,67 @@
+/**
+ * ───「 FEATURE AUTHOR 」───
+ * 👤 Author     : Lynx Decode
+ * 📞 Contact    : +62 882-5804-1396
+ * 📢 Channel    : https://whatsapp.com/channel/0029VbAnuii6GcGCu73oep1i
+ * ⚠️ Note       : Keep credit to respect the creator!
+ * ─────────────────────────
+ * 📝 Plugin: IQC Image Maker (Litterbox/Shinzu Uploader Version)
+ */
+
+import fetch from 'node-fetch'
+import { FormData, Blob } from 'formdata-node'
+
+let handler = async (m, { conn, text, usedPrefix, command }) => {
+    let q = m.quoted ? m.quoted : m
+    let mime = (q.msg || q).mimetype || ''
+    
+    if (!mime.startsWith('image/')) {
+        return m.reply(`┌˚₊ ๑│ ɪ ǫ ᴄ  ᴍ ᴀ ᴋ ᴇ ʀ │๑˚₊ 🎨\n┇ \n│ ❌ *Gambarnya mana cuy?*\n│ \n│ 📌 *Cara pakai:*\n│ Kirim/balas gambar dengan caption:\n│ ${usedPrefix + command} <teks>|<baterai>|<jam>|<provider>\n│ \n│ 📝 *Contoh:*\n│ ${usedPrefix + command} ErineBot|100|00.00|TELKOMSEL\n┇ \n└˚₊ ๑ ────────────── ๑˚₊\n> © ERINE-AI`)
+    }
+
+    let input = text ? text.split('|') : []
+    let txt = input[0] || 'ERINE-AI'
+    let battery = input[1] || '100'
+    let time = input[2] || '00.00'
+    let provider = input[3] || 'TELKOMSEL'
+
+    await m.react('⏳')
+
+    try {
+        let media = await q.download()
+        
+        let formData = new FormData()
+        let blob = new Blob([media], { type: mime })
+        formData.append('file', blob, 'upload_file')
+
+        let upRes = await fetch('https://api.shinzu.web.id/api/upload/litterbox', {
+            method: 'POST',
+            body: formData
+        })
+        let upJson = await upRes.json()
+
+        if (!upJson.status || !upJson.result) throw new Error('Gagal mengunggah media ke uploader.')
+        let uploadUrl = upJson.result.url
+        
+        let apiUrl = `https://api.cmnty.web.id/maker/iqc-image?image=${encodeURIComponent(uploadUrl)}&text=${encodeURIComponent(txt)}&battery=${encodeURIComponent(battery)}&time=${encodeURIComponent(time)}&provider=${encodeURIComponent(provider)}`
+
+        await conn.sendMessage(m.chat, {
+            image: { url: apiUrl },
+            caption: `┌˚₊ ๑│ ɪ ǫ ᴄ  ᴍ ᴀ ᴋ ᴇ ʀ │๑˚₊ 🎨\n┇ \n│ ✅ *Berhasil dibuat!*\n┇ \n└˚₊ ๑ ────────────── ๑˚₊\n> © ERINE-AI`
+        }, { quoted: m })
+
+        await m.react('✅')
+
+    } catch (error) {
+        console.error('[IQC ERROR]', error)
+        await m.react('❌')
+        m.reply(`┌˚₊ ๑│ ꜱ ʏ ꜱ ᴛ ᴇ ᴍ  ᴇ ʀ ʀ ᴏ ʀ │๑˚₊ ❌\n┇ Gagal membuat IQC image.\n┇ \n┇ *Detail:*\n┇ ${error.message || String(error)}\n└˚₊ ๑ ────────────── ๑˚₊\n> © ERINE-AI`)
+    }
+}
+
+handler.help = ['iqc']
+handler.tags = ['maker']
+handler.command = /^(iqc|iqcimage)$/i
+handler.limit = true
+
+export default handler
