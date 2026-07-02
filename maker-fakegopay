@@ -1,0 +1,38 @@
+/*───「 FEATURE AUTHOR 」───
+ * 👤 Author     : Lynx Decode
+ * 📞 Contact    : +62 882-5804-1396
+ * 📢 Channel    : https://whatsapp.com/channel/0029VbAnuii6GcGCu73oep1i
+ * ⚠️ Note       : Keep credit to respect the creator!
+ * ─────────────────────────
+ * 📝 Plugin: Fake Gopay Generator
+ */
+
+import fetch from 'node-fetch'
+
+let handler = async (m, { conn, text, usedPrefix, command }) => {
+    let [saldo, koin] = text.split('|')
+
+    if (!saldo || !koin) {
+        return m.reply(`┌˚₊ ๑│ FAKE GOPAY │๑˚₊ ❌\n┇ \n│ ❌ *Format salah! Gunakan:*\n│ ${usedPrefix + command} 890000|159\n┇ \n└˚₊ ๑ ────────────── ๑˚₊\n> © ERINE-AI`)
+    }
+
+    try {
+        await m.react('⏳')
+        let res = `https://api.cmnty.web.id/maker/fake-gopay?saldo=${saldo}&koin=${koin}`
+        
+        let txt = `┌˚₊ ๑│ FAKE GOPAY │๑˚₊ 🎨\n┇ \n│ ✅ *Berhasil dibuat!*\n│ Saldo: Rp${saldo}\n│ Koin: ${koin}\n┇ \n└˚₊ ๑ ────────────── ๑˚₊\n> © ERINE-AI`
+        
+        await conn.sendFile(m.chat, res, 'gopay.png', txt, m)
+        await m.react('✅')
+    } catch (e) {
+        await m.react('❌')
+        return m.reply(`┌˚₊ ๑│ FAKE GOPAY │๑˚₊ ❌\n┇ \n│ ❌ *Terjadi kesalahan saat memproses API.*\n┇ \n└˚₊ ๑ ────────────── ๑˚₊\n> © ERINE-AI`)
+    }
+}
+
+handler.help = ['fakegopay <saldo|koin>']
+handler.tags = ['maker']
+handler.command = /^fakegopay$/i
+handler.limit = true
+
+export default handler
