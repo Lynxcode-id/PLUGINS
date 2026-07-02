@@ -1,0 +1,204 @@
+/*
+ * Created by : maxz str
+ * Bot Plugin: Unified Downloader
+ * Description: Support Bilibili, Mediafire, APK, Apple Music, Douyin, Spotify, CapCut, Stickerly, Resep, Sfile, GroupSOR, IStock
+ */
+
+import axios from 'axios'
+
+const API = "https://api.nexray.eu.cc"
+
+const config = {
+    headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36',
+        'Referer': 'https://www.google.com/'
+    }
+}
+
+const getBuffer = async (url) => {
+    const res = await axios.get(url, { 
+        responseType: 'arraybuffer', 
+        ...config 
+    });
+    return Buffer.from(res.data, 'binary');
+}
+
+let handler = async (m, { conn, command, text }) => {
+
+  // ── IStock (Search) ──
+  if (command === 'istock') {
+    if (!text) return m.reply(`Contoh: .istock Mountain`)
+    try {
+      m.reply("🔍 Mencari stok gambar...")
+      const { data } = await axios.get(`${API}/search/istock?q=${encodeURIComponent(text)}`, config)
+      if (!data.result || data.result.length === 0) return m.reply("❌ Tidak ditemukan.")
+      
+      let txt = "🖼️ *Hasil IStock:*\n\n"
+      data.result.slice(0, 5).forEach((v, i) => {
+        // v.title/v.url disesuaikan dengan asumsi struktur data umum
+        txt += `${i + 1}. *${v.title || "Gambar"}*\n   🔗 ${v.url || v.link || "Tidak ada link"}\n\n`
+      })
+      m.reply(txt)
+    } catch (e) { m.reply("❌ Error: " + e.message) }
+  }
+
+  // ── GroupSOR (Search) ──
+  if (command === 'groupsor') {
+    if (!text) return m.reply(`Contoh: .groupsor Cari teman`)
+    try {
+      m.reply("🔍 Mencari grup...")
+      const { data } = await axios.get(`${API}/search/groupsor?q=${encodeURIComponent(text)}`, config)
+      if (!data.result || data.result.length === 0) return m.reply("❌ Tidak ditemukan.")
+      
+      let txt = "👥 *Hasil Pencarian Grup:*\n\n"
+      data.result.slice(0, 5).forEach((v, i) => {
+        txt += `${i + 1}. *${v.title || v.name || "Grup Tanpa Nama"}*\n   🔗 ${v.url || "Tidak ada link"}\n\n`
+      })
+      m.reply(txt)
+    } catch (e) { m.reply("❌ Error: " + e.message) }
+  }
+
+  // ── Sfile (Search & Downloader) ──
+  if (command === 'sfile') {
+    if (!text) return m.reply(`Contoh:\nCari: .sfile Pou\nDL: .sfile [url sfile]`)
+    try {
+      if (text.includes("sfile.co")) {
+        m.reply("📥 Mengambil file...")
+        const { data } = await axios.get(`${API}/downloader/sfile?url=${encodeURIComponent(text)}`, config)
+        const res = data.result || {};
+        const nama = res.filename || res.name || res.title || text.split('/').pop().split('?')[0] || "Tidak ada nama";
+        const size = res.filesize || res.size || "Tidak diketahui";
+        const link = res.download_url || res.url || res.link || text;
+        m.reply(`📂 *Sfile Downloader*\n\n📌 Nama: ${nama}\n⚖️ Size: ${size}\n🔗 Link: ${link}`)
+      } else {
+        m.reply("🔍 Mencari file...")
+        const { data } = await axios.get(`${API}/search/sfile?q=${encodeURIComponent(text)}`, config)
+        if (!data.result || data.result.length === 0) return m.reply("❌ Tidak ditemukan.")
+        let txt = "📂 *Hasil Pencarian Sfile:*\n\n"
+        data.result.slice(0, 5).forEach((v, i) => {
+          txt += `${i + 1}. *${v.name || v.title}*\n   ⚖️ ${v.size || "Unknown"}\n   🔗 ${v.url}\n\n`
+        })
+        m.reply(txt)
+      }
+    } catch (e) { m.reply("❌ Error: " + e.message) }
+  }
+
+  // ── Mediafire ──
+  if (command === 'mfdlv2') {
+    if (!text || !text.includes("mediafire.com")) return m.reply(`Contoh: .${command} url`)
+    try {
+      const { data } = await axios.get(`${API}/downloader/mediafire?url=${encodeURIComponent(text)}`, config)
+      m.reply(`📦 *Mediafire*\n\n📌 Nama: ${data.result.filename}\n🔗 Link: ${data.result.download_url}`)
+    } catch (e) { m.reply("❌ Error: " + e.message) }
+  }
+
+  // ── Stickerly ──
+  if (command === 'stickerly') {
+    if (!text) return m.reply(`Contoh: .stickerly Spongebob`)
+    try {
+      m.reply("🔍 Mencari stiker...")
+      const { data } = await axios.get(`${API}/search/stickerly?q=${encodeURIComponent(text)}`, config)
+      if (!data.result || data.result.length === 0) return m.reply("❌ Tidak ditemukan.")
+      let txt = "🖼️ *Hasil Stickerly:*\n\n"
+      data.result.slice(0, 5).forEach((v, i) => {
+        const name = v.name || v.title || "Stiker Tanpa Nama";
+        txt += `${i + 1}. *${name}*\n   🔗 ${v.url}\n\n`
+      })
+      m.reply(txt)
+    } catch (e) { m.reply("❌ Error: " + e.message) }
+  }
+
+  // ── Resep ──
+  if (command === 'resep') {
+    if (!text) return m.reply(`Contoh: .resep Nasi goreng`)
+    try {
+      m.reply("🍳 Mencari resep...")
+      const { data } = await axios.get(`${API}/search/resep?q=${encodeURIComponent(text)}`, config)
+      if (!data.result || data.result.length === 0) return m.reply("❌ Resep tidak ditemukan.")
+      let txt = "👨‍🍳 *Hasil Pencarian Resep:*\n\n"
+      data.result.slice(0, 5).forEach((v, i) => {
+        txt += `${i + 1}. *${v.title || "Resep Tanpa Nama"}*\n   🔗 ${v.url || v.link || "Tidak ada link"}\n\n`
+      })
+      m.reply(txt)
+    } catch (e) { m.reply("❌ Error: " + e.message) }
+  }
+
+  // ── Douyin ──
+  if (command === 'dydown') {
+    if (!text) return m.reply(`Contoh:\nCari: .dydown s kata\nDL: .dydown link`)
+    const [action, ...args] = text.split(" ")
+    const query = args.join(" ")
+    try {
+      if (action === 's') {
+        const { data } = await axios.get(`${API}/search/douyin?q=${encodeURIComponent(query)}`, config)
+        let txt = "🎵 *Hasil Douyin:*\n\n"
+        data.result.slice(0, 5).forEach((v, i) => { txt += `${i + 1}. *${v.author.nickname}*\n   🔗 ${v.url}\n\n` })
+        m.reply(txt)
+      } else {
+        m.reply("📥 Mendownload...")
+        const res = await axios.get(`${API}/downloader/douyin?url=${encodeURIComponent(text)}`, config)
+        const buffer = await getBuffer(res.data.result.url || res.data.result.video)
+        await conn.sendMessage(m.chat, { video: buffer, caption: "✅ Douyin" }, { quoted: m })
+      }
+    } catch (e) { m.reply("❌ Error: " + e.message) }
+  }
+
+  // ── Spotify ──
+  if (command === 'spotdlv2') {
+    if (!text) return m.reply(`Contoh:\nCari: .spotdlv2 judul\nDL: .spotdlv2 link`)
+    const isUrl = text.startsWith("http");
+    try {
+      if (!isUrl) {
+        const { data } = await axios.get(`${API}/search/spotify?q=${encodeURIComponent(text)}`, config)
+        let txt = "🎵 *Hasil Spotify:*\n\n"
+        data.result.slice(0, 5).forEach((v, i) => { txt += `${i + 1}. *${v.title}*\n   Link: ${v.url}\n\n` })
+        m.reply(txt)
+      } else {
+        m.reply("📥 Mendownload...")
+        const { data } = await axios.get(`${API}/downloader/spotify?url=${encodeURIComponent(text)}`, config)
+        const buffer = await getBuffer(data.result.url)
+        await conn.sendMessage(m.chat, { audio: buffer, mimetype: 'audio/mpeg', fileName: `${data.result.title}.mp3` }, { quoted: m })
+      }
+    } catch (e) { m.reply("❌ Error: " + e.message) }
+  }
+
+  // ── Bilibili ──
+  if (command === 'bilibili') {
+    if (!text) return m.reply(`Contoh: .bilibili [s/d] [query/link]`)
+    const [action, ...args] = text.split(" ")
+    const query = args.join(" ")
+    if (action === 's') {
+      const { data } = await axios.get(`${API}/search/bilibili?q=${encodeURIComponent(query)}`, config)
+      let txt = "📺 *Hasil Bilibili:*\n\n"
+      data?.result?.slice(0, 5).forEach((v, i) => { txt += `${i + 1}. *${v.title}*\n   Link: ${v.video_url}\n\n` })
+      m.reply(txt)
+    } else if (action === 'd') {
+      m.reply("📥 Mendownload...")
+      const { data } = await axios.get(`${API}/downloader/bilibili?url=${encodeURIComponent(query)}`, config)
+      const dl = data.result.media.find(m => m.quality === '720p') || data.result.media[0]
+      const buffer = await getBuffer(dl.url)
+      await conn.sendMessage(m.chat, { video: buffer, caption: "🎬 Bilibili" }, { quoted: m })
+    }
+  }
+
+  // ── CapCut ──
+  if (command === 'capcut') {
+    if (!text) return m.reply(`Contoh: .capcut [s/d] [query/link]`)
+    const [action, ...args] = text.split(" ")
+    const query = args.join(" ")
+    if (action === 's') {
+      const { data } = await axios.get(`${API}/search/capcut?q=${encodeURIComponent(query)}`, config)
+      let txt = "✨ *Hasil CapCut:*\n\n"
+      data.result.slice(0, 5).forEach((v, i) => { txt += `${i + 1}. *${v.title.split('#')[0]}*\n   Link: ${v.data}\n\n` })
+      m.reply(txt)
+    } else if (action === 'd') {
+      const { data } = await axios.get(`${API}/downloader/v1/capcut?url=${encodeURIComponent(query)}`, config)
+      await conn.sendMessage(m.chat, { video: { url: data.result.url }, caption: `🎬 ${data.result.title}` }, { quoted: m })
+    }
+  }
+}
+
+handler.command = /^(mfdlv2|apkdl|appledl|dydown|spotdlv2|bilibili|capcut|stickerly|resep|sfile|groupsor|istock)$/i
+handler.premium = true
+
+export default handler
