@@ -1,0 +1,271 @@
+/**
+ * ───「 FEATURE AUTHOR 」───
+ * 👤 Integrator : Lynx Decode
+ * 👤 Scraper    : febry.is-a.dev (GitHub: vandebry10-star)
+ * 📞 Contact    : +62 882-5804-1396
+ * 📢 Channel    : https://whatsapp.com/channel/0029VbAnuii6GcGCu73oep1i
+ * ⚠️ Note       : Keep credit to respect the creator!
+ * ─────────────────────────
+ * 📝 Plugin: TempMail (mail.tm)
+ */
+
+import axios from "axios";
+import crypto from "crypto";
+
+class TempMail {
+    constructor() {
+        this.token = "";
+        this.address = "";
+        this.password = "";
+        this.baseUrl = "https://api.mail.tm";
+        this.headers = {
+            accept: "application/json",
+            "accept-language": "id-ID",
+            "cache-control": "no-cache",
+            origin: "https://internxt.com",
+            pragma: "no-cache",
+            priority: "u=1, i",
+            referer: "https://internxt.com/",
+            "sec-ch-ua": '"Chromium";v="127", "Not)A;Brand";v="99", "Microsoft Edge Simulate";v="127", "Lemur";v="127"',
+            "sec-ch-ua-mobile": "?1",
+            "sec-ch-ua-platform": '"Android"',
+            "sec-fetch-dest": "empty",
+            "sec-fetch-mode": "cors",
+            "sec-fetch-site": "cross-site",
+            "user-agent": "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/127.0.0.0 Mobile Safari/537.36"
+        };
+    }
+    _r(type) {
+        try {
+            const v = "aeiou";
+            const c = "bcdfghjklmnpqrstvwxyz";
+            const rc = str => str.charAt(crypto.randomInt ? crypto.randomInt(0, str.length) : Math.floor(Math.random() * str.length));
+            const rn = (min, max) => crypto.randomInt ? crypto.randomInt(min, max) : Math.floor(Math.random() * (max - min)) + min;
+            if (type === "user") {
+                let name = "";
+                const syl = rn(3, 5);
+                for (let i = 0; i < syl; i++) {
+                    name += rc(c) + rc(v);
+                }
+                return `${name}${rn(10, 99)}`;
+            }
+            let pass = rc(c).toUpperCase() + rc(v);
+            for (let i = 0; i < 3; i++) {
+                pass += rc(c) + rc(v);
+            }
+            return `${pass}${rn(100, 999)}`;
+        } catch (err) {
+            return crypto.randomUUID ? crypto.randomUUID().split("-")[0] : Math.random().toString(36).substring(2, 10);
+        }
+    }
+    _s(obj) {
+        try {
+            if (Array.isArray(obj)) return obj.map(v => this._s(v));
+            if (obj !== null && typeof obj === "object" && obj.constructor === Object) {
+                return Object.keys(obj).reduce((acc, key) => {
+                    const sk = key.replace(/[A-Z]/g, l => `_${l.toLowerCase()}`).replace("@", "at_");
+                    acc[sk] = this._s(obj[key]);
+                    return acc;
+                }, {});
+            }
+            return obj;
+        } catch (err) {
+            return obj;
+        }
+    }
+    async _q(method, path, data, tok) {
+        try {
+            const act = tok || this.token;
+            const hdrs = { ...this.headers };
+            if (act) hdrs["authorization"] = `Bearer ${act}`;
+            const res = await axios({
+                method: method || "GET",
+                url: `${this.baseUrl}${path}`,
+                headers: hdrs,
+                data: data || null
+            });
+            return res?.data || null;
+        } catch (err) {
+            throw new Error(err.response?.data?.message || err.message);
+        }
+    }
+    async _t(tok) {
+        if (tok || this.token) return tok || this.token;
+        const acc = await this.create({});
+        return acc?.token || "";
+    }
+    async domain({ token, page = 1 } = {}) {
+        try {
+            const act = token || this.token;
+            const raw = await this._q("GET", `/domains?page=${page}`, null, act);
+            return {
+                status: true,
+                result: this._s(raw),
+                token: act
+            };
+        } catch (err) {
+            return {
+                status: false,
+                error: err.message,
+                token: token || this.token
+            };
+        }
+    }
+    async create({ token, address, password } = {}) {
+        try {
+            let addr = address || this.address;
+            let pass = password || this.password;
+            if (!addr) {
+                const doms = await this.domain({ token: token || this.token });
+                const selected = doms?.result?.[0]?.domain || "wshu.net";
+                addr = `${this._r("user")}@${selected}`;
+            }
+            if (!pass) pass = this._r("pass");
+            this.address = addr;
+            this.password = pass;
+            const body = { address: addr, password: pass };
+            const accRaw = await this._q("POST", "/accounts", body, token);
+            const tokRaw = await this._q("POST", "/token", body, token);
+            this.token = tokRaw?.token || this.token;
+            return {
+                status: true,
+                result: this._s({
+                    ...accRaw,
+                    account_password: pass
+                }),
+                token: this.token
+            };
+        } catch (err) {
+            return {
+                status: false,
+                error: err.message,
+                token: token || this.token
+            };
+        }
+    }
+    async message({ token, id, msg_id, page = 1 } = {}) {
+        try {
+            const act = await this._t(token);
+            const targetId = id || msg_id || null;
+            if (targetId) {
+                const single = await this._q("GET", `/messages/${targetId}`, null, act);
+                return {
+                    status: true,
+                    result: this._s(single),
+                    token: act
+                };
+            }
+            const shallow = await this._q("GET", `/messages?page=${page}`, null, act) || [];
+            const detailed = [];
+            for (const item of shallow) {
+                try {
+                    const mId = item?.id;
+                    if (mId) {
+                        const content = await this._q("GET", `/messages/${mId}`, null, act);
+                        if (content) detailed.push(content);
+                    }
+                } catch (subErr) {
+                    detailed.push(item);
+                }
+            }
+            return {
+                status: true,
+                result: this._s(detailed),
+                token: act
+            };
+        } catch (err) {
+            return {
+                status: false,
+                result: [],
+                error: err.message,
+                token: token || this.token
+            };
+        }
+    }
+}
+
+let handler = async (m, { conn, text, usedPrefix, command }) => {
+    let args = text.split(' ')
+    let action = args[0]?.toLowerCase()
+    
+    if (!action || !['create', 'inbox', 'read'].includes(action)) {
+        return m.reply(`┌˚₊ ๑│ ᴛ ᴇ ᴍ ᴘ ᴍ ᴀ ɪ ʟ │๑˚₊ 📧\n┇ \n│ 📌 *Cara pakai:*\n│ ${usedPrefix + command} create (Buat email baru)\n│ ${usedPrefix + command} inbox <token> (Cek pesan masuk)\n│ ${usedPrefix + command} read <token> <id> (Baca pesan)\n┇ \n└˚₊ ๑ ────────────── ๑˚₊\n> © ERINE-AI`)
+    }
+
+    const api = new TempMail()
+    await m.react('⏳')
+
+    try {
+        if (action === 'create') {
+            const res = await api.create()
+            if (!res.status) throw new Error(res.error)
+            
+            let txt = `┌˚₊ ๑│ ᴛ ᴇ ᴍ ᴘ ᴍ ᴀ ɪ ʟ │๑˚₊ 📧\n┇ \n`
+            txt += `│ ✉️ *Email:* ${res.result.address}\n`
+            txt += `│ 🔑 *Password:* ${res.result.account_password}\n`
+            txt += `│ 🔐 *Token:* ${res.token}\n`
+            txt += `┇ \n│ ⚠️ _Simpan token di atas untuk mengecek inbox!_\n`
+            txt += `└˚₊ ๑ ────────────── ๑˚₊\n> © ERINE-AI`
+            
+            await m.reply(txt)
+            await m.react('✅')
+        } 
+        
+        else if (action === 'inbox') {
+            let token = args[1]
+            if (!token) return m.reply(`┌˚₊ ๑│ ᴛ ᴇ ᴍ ᴘ ᴍ ᴀ ɪ ʟ │๑˚₊ ❌\n┇ Token tidak ditemukan!\n┇ *Format:* ${usedPrefix + command} inbox <token>\n└˚₊ ๑ ────────────── ๑˚₊\n> © ERINE-AI`)
+            
+            const res = await api.message({ token: token })
+            if (!res.status) throw new Error(res.error)
+            
+            if (res.result.length === 0) {
+                await m.reply(`┌˚₊ ๑│ ᴛ ᴇ ᴍ ᴘ ᴍ ᴀ ɪ ʟ │๑˚₊ 📭\n┇ Inbox masih kosong.\n└˚₊ ๑ ────────────── ๑˚₊\n> © ERINE-AI`)
+                return await m.react('✅')
+            }
+
+            let txt = `┌˚₊ ๑│ ᴛ ᴇ ᴍ ᴘ ᴍ ᴀ ɪ ʟ │๑˚₊ 📥\n┇ \n`
+            res.result.forEach((msg, i) => {
+                txt += `│ *[${i + 1}] Dari:* ${msg.from.address}\n`
+                txt += `│ *Subjek:* ${msg.subject}\n`
+                txt += `│ *ID:* ${msg.id}\n┇ \n`
+            })
+            txt += `│ 📌 *Gunakan:* ${usedPrefix + command} read <token> <id> untuk membaca.\n`
+            txt += `└˚₊ ๑ ────────────── ๑˚₊\n> © ERINE-AI`
+            
+            await m.reply(txt)
+            await m.react('✅')
+        }
+
+        else if (action === 'read') {
+            let token = args[1]
+            let msgId = args[2]
+            
+            if (!token || !msgId) return m.reply(`┌˚₊ ๑│ ᴛ ᴇ ᴍ ᴘ ᴍ ᴀ ɪ ʟ │๑˚₊ ❌\n┇ Token atau ID pesan tidak ditemukan!\n┇ *Format:* ${usedPrefix + command} read <token> <id>\n└˚₊ ๑ ────────────── ๑˚₊\n> © ERINE-AI`)
+            
+            const res = await api.message({ token: token, id: msgId })
+            if (!res.status) throw new Error(res.error)
+            
+            let txt = `┌˚₊ ๑│ ᴛ ᴇ ᴍ ᴘ ᴍ ᴀ ɪ ʟ │๑˚₊ 📖\n┇ \n`
+            txt += `│ *Dari:* ${res.result.from.address}\n`
+            txt += `│ *Subjek:* ${res.result.subject}\n`
+            txt += `│ *Tanggal:* ${new Date(res.result.created_at).toLocaleString('id-ID')}\n┇ \n`
+            txt += `│ *Pesan:*\n${res.result.text}\n┇ \n`
+            txt += `└˚₊ ๑ ────────────── ๑˚₊\n> © ERINE-AI`
+            
+            await m.reply(txt)
+            await m.react('✅')
+        }
+
+    } catch (error) {
+        console.error('[TEMPMAIL ERROR]', error)
+        await m.react('❌')
+        m.reply(`┌˚₊ ๑│ ꜱ ʏ ꜱ ᴛ ᴇ ᴍ  ᴇ ʀ ʀ ᴏ ʀ │๑˚₊ ❌\n┇ Gagal memproses permintaan.\n┇ \n┇ *Detail:*\n┇ ${error.message || String(error)}\n└˚₊ ๑ ────────────── ๑˚₊\n> © ERINE-AI`)
+    }
+}
+
+handler.help = ['tempmail']
+handler.tags = ['tools']
+handler.command = /^(tempmail|mail)$/i
+handler.limit = true
+
+export default handler
