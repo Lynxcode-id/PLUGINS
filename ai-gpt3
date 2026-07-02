@@ -1,0 +1,53 @@
+/**
+ * ───「 FEATURE AUTHOR 」───
+ * 👤 Author     : Lynx Decode
+ * 📞 Contact    : +62 882-5804-1396
+ * 📢 Channel    : https://whatsapp.com/channel/0029VbAnuii6GcGCu73oep1i
+ * ⚠️ Note       : Keep credit to respect the creator!
+ * ─────────────────────────
+ * 📝 Plugin     : Erine-AI GPT-3.5 Turbo (Full ESM)
+ */
+
+import fetch from 'node-fetch'
+
+const USER_AGENTS = [
+  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+  'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
+  'Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Mobile Safari/537.36',
+  'Mozilla/5.0 (iPhone; CPU iPhone OS 17_3 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.3 Mobile/15E148 Safari/604.1'
+]
+
+const getRandomAgent = () => USER_AGENTS[Math.floor(Math.random() * USER_AGENTS.length)]
+const INDO_PROMPT = '\n\n(Catatan Sistem: Kamu adalah AI asisten pemrograman Erine-AI. Jawablah menggunakan Bahasa Indonesia yang jelas. Jika user memberikan potongan kode pemrograman/script, analisis dengan teliti, perbaiki jika ada error, dan berikan penjelasan kodingannya dengan lengkap).'
+
+let handler = async (m, { conn, usedPrefix, command, text }) => {
+  let queryText = text || (m.quoted && m.quoted.text) ? (text || m.quoted.text) : null
+  if (!queryText) return m.reply(`💡 *Contoh Penggunaan:* \n1. Teks langsung: *${usedPrefix + command} halo*\n2. Reply pesan: Balas/reply sebuah kode script lalu ketik *${usedPrefix + command}*`)
+
+  await m.react('⏳')
+  try {
+    let fullQuery = queryText + INDO_PROMPT
+    let apiURL = `https://api.cmnty.web.id/ai/gpt-3.5-turbo?text=${encodeURIComponent(fullQuery)}`
+    let res = await fetch(apiURL, {
+      method: 'GET',
+      headers: { 
+        'Accept': 'application/json',
+        'User-Agent': getRandomAgent() 
+      }
+    })
+    let json = await res.json()
+    if (!json.status) throw new Error('Respon API Bermasalah.')
+    
+    m.reply(json.result)
+    await m.react('✨')
+  } catch (e) {
+    console.error(e)
+    m.reply(`❌ *Gagal memuat GPT-3:* ${e.message}`)
+  }
+}
+
+handler.help = ['gpt3 <teks/reply code>']
+handler.tags = ['ai']
+handler.command = /^(gpt3)$/i
+
+export default handler
