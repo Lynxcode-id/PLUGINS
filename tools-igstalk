@@ -1,0 +1,74 @@
+/**
+ * ───「 FEATURE AUTHOR 」───
+ * 👤 Author     : Lynx Decode
+ * 📞 Contact    : +62 882-5804-1396
+ * 📢 Channel    : https://whatsapp.com/channel/0029VbAnuii6GcGCu73oep1i
+ * ⚠️ Note       : Keep credit to respect the creator!
+ * ─────────────────────────
+ * 📝 Plugin: Instagram Profile Stalker
+ */
+
+import fetch from 'node-fetch'
+
+let handler = async (m, { conn, text, usedPrefix, command }) => {
+    if (!text) {
+        return m.reply(`┌˚₊ ๑│ ɪ ɴ ꜱ ᴛ ᴀ  ꜱ ᴛ ᴀ ʟ ᴋ │๑˚₊ 🔍\n┇ \n│ ❌ *Username Instagram nya mana cuy?*\n│ \n│ 📌 *Cara pakai:*\n│ ${usedPrefix + command} <username>\n│ \n│ 📝 *Contoh:*\n│ ${usedPrefix + command} nasaartemis\n┇ \n└˚₊ ๑ ────────────── ๑˚₊\n> © ERINE-AI`)
+    }
+
+    await m.react('⏳')
+
+    try {
+        let apiRes = await fetch(`https://api.cmnty.web.id/downloader/ummy?url=${encodeURIComponent(text)}`, {
+            headers: { 'Accept': 'application/json' }
+        })
+        let json = await apiRes.json()
+
+        if (!json.status || !json.data || !json.data.result || json.data.result.length === 0) {
+            throw new Error('Data profil tidak ditemukan atau API sedang error.')
+        }
+
+        let userData = json.data.result[0].user
+        
+        let caption = `┌˚₊ ๑│ ɪ ɴ ꜱ ᴛ ᴀ  ꜱ ᴛ ᴀ ʟ ᴋ │๑˚₊ 👤
+┇ 
+│ 👤 *Nama:* ${userData.full_name || '-'}
+│ 🏷️ *Username:* @${userData.username}
+│ 🆔 *ID/PK:* ${userData.pk}
+│ 📊 *Kategori:* ${userData.category || '-'}
+│ 👥 *Followers:* ${userData.follower_count?.toLocaleString('id-ID') || 0}
+│ 🏃 *Following:* ${userData.following_count?.toLocaleString('id-ID') || 0}
+│ 📸 *Total Post:* ${userData.media_count?.toLocaleString('id-ID') || 0}
+│ 🛡️ *Verified:* ${userData.is_verified ? 'Ya ✅' : 'Tidak ❌'}
+│ 🔒 *Private:* ${userData.is_private ? 'Ya 🔒' : 'Tidak 🔓'}
+│ 📝 *Bio:* "${userData.biography || '-'}"
+│ 🔗 *Link Bio:* ${userData.external_url || '-'}
+┇ 
+└˚₊ ๑ ────────────── ๑˚₊
+> © ERINE-AI`
+
+        let profilePic = userData.hd_profile_pic_url_info?.url_downloadable || userData.profile_pic_url
+
+        if (profilePic) {
+            await conn.sendMessage(m.chat, {
+                image: { url: profilePic },
+                caption: caption
+            }, { quoted: m })
+        } else {
+            await m.reply(caption)
+        }
+
+        await m.react('✅')
+
+    } catch (error) {
+        console.error('[IG STALK ERROR]', error)
+        await m.react('❌')
+        m.reply(`┌˚₊ ๑│ ꜱ ʏ ꜱ ᴛ ᴇ ᴍ  ᴇ ʀ ʀ ᴏ ʀ │๑˚₊ ❌\n┇ Gagal mencari profil Instagram tersebut.\n┇ \n┇ *Detail:*\n┇ ${error.message || String(error)}\n└˚₊ ๑ ────────────── ๑˚₊\n> © ERINE-AI`)
+    }
+}
+
+handler.help = ['igstalk']
+handler.tags = ['tools']
+handler.command = /^(igstalk|stalkig)$/i
+handler.limit = true
+
+export default handler
