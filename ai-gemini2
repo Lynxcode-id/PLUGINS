@@ -1,0 +1,70 @@
+/**
+ * ───「 FEATURE AUTHOR 」───
+ * 👤 Author     : Lynx Decode
+ * 📞 Contact    : +62 882-5804-1396
+ * 📢 Channel    : https://whatsapp.com/channel/0029VbAnuii6GcGCu73oep1i
+ * ⚠️ Note       : Keep credit to respect the creator!
+ * ─────────────────────────
+ * 📝 Plugin: Gemini 3.1 Flash
+ */
+
+import fetch from 'node-fetch'
+import { FormData, Blob } from 'formdata-node'
+
+let handler = async (m, { conn, text, usedPrefix, command }) => {
+    let q = m.quoted ? m.quoted : m
+    let mime = (q.msg || q).mimetype || ''
+    
+    if (!text && !mime.startsWith('image/')) {
+        return m.reply(`┌˚₊ ๑│ ɢ ᴇ ᴍ ɪ ɴ ɪ  ᴀ ɪ │๑˚₊ 🤖\n┇ \n│ ❌ *Teks atau gambarnya mana cuy?*\n│ \n│ 📌 *Cara pakai:*\n│ Teks saja: ${usedPrefix + command} <pertanyaan>\n│ Dengan gambar: Kirim/balas gambar dengan caption.\n┇ \n└˚₊ ๑ ────────────── ๑˚₊\n> © ERINE-AI`)
+    }
+
+    await m.react('⏳')
+
+    try {
+        let imageUrl = ''
+        
+        if (mime.startsWith('image/')) {
+            let media = await q.download()
+            let formData = new FormData()
+            let blob = new Blob([media], { type: mime })
+            formData.append('file', blob, 'upload_file')
+
+            let upRes = await fetch('https://api.shinzu.web.id/api/upload/litterbox', {
+                method: 'POST',
+                body: formData
+            })
+            let upJson = await upRes.json()
+            if (upJson.status && upJson.result) {
+                imageUrl = upJson.result.url
+            }
+        }
+
+        let systemPrompt = 'Kamu adalah ERINE-AI, asisten pintar berbasis kecerdasan buatan. Jawablah semua pertanyaan dengan bahasa Indonesia yang ramah, jelas, santai, dan menggunakan panggilan "cuy". Jika user memintamu membuat fitur bot, buatlah kode plugin WhatsApp bot (CommonJS/ESM) yang clean, terstruktur rapi, lengkap dengan panel informasi author, header, footer khas ERINE-AI, command handler, error handling, dan auto react emoji.'
+        let finalQuery = text ? `${systemPrompt}\n\nUser: ${text}` : `${systemPrompt}\n\nJelaskan atau jawab sesuai dengan gambar yang dilampirkan ini cuy.`
+
+        let apiRes = await fetch(`https://api.cmnty.web.id/ai/gemini-3-1-flash?text=${encodeURIComponent(finalQuery)}&image=${encodeURIComponent(imageUrl)}`, {
+            headers: { 'Accept': 'application/json' }
+        })
+        let json = await apiRes.json()
+
+        if (!json.status || !json.result) throw new Error('Gagal mendapatkan respon dari Cmnty API.')
+
+        let replyText = `┌˚₊ ๑│ ɢ ᴇ ᴍ ɪ ɴ ɪ  ᴀ ɪ │๑˚₊ 🤖\n┇ \n${json.result}\n┇ \n└˚₊ ๑ ────────────── ๑˚₊\n> © ERINE-AI`
+        
+        await m.reply(replyText)
+        await m.react('✅')
+
+    } catch (error) {
+        console.error('[GEMINI ERROR]', error)
+        await m.react('❌')
+        m.reply(`┌˚₊ ๑│ ꜱ ʏ ꜱ ᴛ ᴇ ᴍ  ᴇ ʀ ʀ ᴏ ʀ │๑˚₊ ❌\n┇ Gagal memproses data AI.\n┇ \n┇ *Detail:*\n┇ ${error.message || String(error)}\n└˚₊ ๑ ────────────── ๑˚₊\n> © ERINE-AI`)
+    }
+}
+
+handler.help = ['gemini2']
+handler.tags = ['ai']
+handler.command = /^gemini2$/i
+handler.limit = true
+
+export default handler
