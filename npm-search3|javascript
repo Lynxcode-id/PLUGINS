@@ -1,0 +1,77 @@
+/**
+ * ───「 FEATURE AUTHOR 」───
+ * 👤 Author     : maxz str - inf project team
+ * 📞 Contact    : +62 859-7427-8171
+ * 📢 Channel    : https://whatsapp.com/channel/0029VbAnuii6GcGCu73oep1i
+ * ⚠️ Note       : Keep credit to respect the creator!
+ * ─────────────────────────
+ * 📝 Plugin     : NPM Search Engine
+ */
+
+import axios from 'axios';
+import { generateWAMessageFromContent, proto } from '@whiskeysockets/baileys';
+
+async function sendInteractiveButtons(conn, jid, title, text, footer, buttons, quoted) {
+    let msg = generateWAMessageFromContent(jid, {
+        viewOnceMessage: {
+            message: {
+                interactiveMessage: proto.Message.InteractiveMessage.fromObject({
+                    body: { text },
+                    footer: { text: footer },
+                    header: { title, hasMediaAttachment: false },
+                    nativeFlowMessage: { buttons }
+                })
+            }
+        }
+    }, { quoted });
+    return await conn.relayMessage(jid, msg.message, { messageId: msg.key.id });
+}
+
+let handler = async (m, { conn, text }) => {
+    if (!text) return m.reply(`*NPM SEARCH*\n\nMasukkan nama package!`);
+    await m.react("⏳");
+
+    try {
+        const { data } = await axios.get(`https://r-bots-free-apis.co08.art/api/v1/api/npmsearch?q=${encodeURIComponent(text)}`);
+        const results = Array.isArray(data) ? data : (data.data || data.results || []);
+        
+        if (results.length === 0) {
+            await m.react("❌");
+            return m.reply("Package tidak ditemukan.");
+        }
+
+        let p = results[0];
+        let link = p.link || p.homepage || `https://www.npmjs.com/package/${p.name}`;
+
+        let caption = `*Name:* ${p.name}\n*Version:* ${p.version}\n*Author:* ${p.publisher || 'N/A'}\n\n*Desc:* ${p.description || '-'}`;
+
+        let buttons = [{
+            name: "cta_url",
+            buttonParamsJson: JSON.stringify({
+                display_text: "🌐 Buka Link NPM/GitHub",
+                url: link,
+                merchant_url: link
+            })
+        }];
+
+        await sendInteractiveButtons(
+            conn, m.chat,
+            "📦 NPM PACKAGE INFO",
+            caption,
+            "» ᴇʀɪɴᴇ ᴘʀᴏᴊᴇᴄᴛ ᴍᴀɴᴀɢᴇᴍᴇɴᴛ «",
+            buttons,
+            m
+        );
+        await m.react("✅");
+    } catch (e) {
+        await m.react("❌");
+        m.reply(`❌ Error: ${e.message}`);
+    }
+}
+
+handler.help = ['npmsearch3 <teks>'];
+handler.tags = ['tools'];
+handler.command = /^npmsearch3$/i;
+handler.limit = true;
+
+export default handler;
