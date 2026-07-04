@@ -1,0 +1,286 @@
+/**
+ * ───「 FEATURE AUTHOR 」───
+ * 👤 Integrator : Lynx Decode
+ * 📞 Contact  : +62 882-5804-1396
+ * 📢 Channel  : https://whatsapp.com/channel/0029VbAnuii6GcGCu73oep1i
+ * ⚠️ Note       : Keep credit to respect the creator!
+ * 🌟 Credit canvas : @renn-offc <- mohon maaf jika salah penyebutan
+ * ⛓️‍💥 Original : https://ren-dev.my.id/pastebin/kpMSK0
+ * ─────────────────────────
+ * 📝 Plugin : Manhwa pack - cek aja ah males yappink
+ * 📦 Module : axios + pdfkit + cheerio !! 
+ * ⚡ UI BY : Erine-AI
+**/
+
+import * as cheerio from 'cheerio'
+import axios from 'axios'
+import PDFDocument from 'pdfkit'
+
+const base_url = 'https://manhwalist02.asia'
+
+async function fetch_html(url) {
+    const res = await fetch(url, {
+        headers: {
+            'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/109.0.0.0 Safari/537.36',
+            'accept-language': 'id-ID,id;q=0.9,en-US;q=0.8,en;q=0.7',
+        },
+    })
+    if (!res.ok) throw new Error(`${res.status} ${url}`)
+    return cheerio.load(await res.text())
+}
+
+function extract_card($, el) {
+    const card = $(el)
+    const url = card.find('div.bsx > a').attr('href') || ''
+    const title = card.find('div.tt').text().trim()
+    const thumb = card.find('div.limit img').attr('src') || card.find('div.limit img').attr('data-src') || ''
+    const chapter = card.find('div.epxs').text().trim()
+    const score = card.find('div.numscore').text().trim()
+    const type = (card.find('span.type').attr('class') || '').replace('type', '').trim()
+    const rating_pct = (card.find('div.rtb span').attr('style') || '').match(/width:\s*(\d+)%/)
+    const rating = rating_pct ? (parseInt(rating_pct[1]) / 10).toFixed(1) : score || '0'
+    return { title, url, thumb, chapter, rating, type }
+}
+
+async function get_latest(page = 1) {
+    const url = `${base_url}/manga/?order=update&page=${page}`
+    const $ = await fetch_html(url)
+    const items = []
+    $('div.listupd > div.bs').each((_, el) => items.push(extract_card($, el)))
+    return { page, items }
+}
+
+async function get_popular(page = 1) {
+    const url = `${base_url}/manga/?order=popular&page=${page}`
+    const $ = await fetch_html(url)
+    const items = []
+    $('div.listupd > div.bs').each((_, el) => items.push(extract_card($, el)))
+    return { page, items }
+}
+
+async function search(query, page = 1) {
+    const url = page > 1
+        ? `${base_url}/page/${page}/?s=${encodeURIComponent(query)}`
+        : `${base_url}/?s=${encodeURIComponent(query)}`
+    const $ = await fetch_html(url)
+    const items = []
+    $('div.listupd > div.bs').each((_, el) => items.push(extract_card($, el)))
+    return { query, page, items }
+}
+
+async function get_detail(slug_or_url) {
+    const url = slug_or_url.startsWith('http') ? slug_or_url : `${base_url}/manga/${slug_or_url}/`
+    const $ = await fetch_html(url)
+
+    const title = $('h1.entry-title').text().trim()
+    const synopsis = $('div.entry-content').text().trim()
+    const cover = $('div.thumb img').attr('src') || $('div.thumb img').attr('data-src') || ''
+    const rating = $('div.rating-prc div.num').text().trim() || '0'
+
+    const genres = []
+    $('div.wd-full span.mgen a').each((_, el) => genres.push($(el).text().trim()))
+
+    const chapters = []
+    $('div#chapterlist.eplister ul li').each((_, el) => {
+        const li = $(el)
+        const num = li.attr('data-num') || ''
+        const name = li.find('span.chapternum').text().trim()
+        const url = li.find('a').attr('href') || ''
+        if (url) chapters.push({ num, name, url })
+    })
+
+    return { title, synopsis, cover, rating, genres, chapters, total_chapters: chapters.length }
+}
+
+// === FIX: UPGRADE SCRAPER GAMBAR CHAPTER ===
+async function get_chapter_images(url) {
+    const $ = await fetch_html(url)
+    let images = []
+    
+    $('#readerarea img').each((_, el) => {
+        let src = $(el).attr('src') || $(el).attr('data-src') || $(el).attr('data-lazy-src') || $(el).attr('data-cfsrc') || ''
+        if (src.startsWith('data:image')) {
+            src = $(el).attr('data-src') || $(el).attr('data-lazy-src') || $(el).attr('data-cfsrc') || ''
+        }
+        
+        if (src && !src.includes('lazyload')) images.push(src.trim())
+    })
+
+    if (images.length === 0) {
+        $('script').each((_, el) => {
+            const scriptHtml = $(el).html() || ''
+            if (scriptHtml.includes('ts_reader.run')) {
+                try {
+                    const match = scriptHtml.match(/ts_reader\.run\((.*?)\);/)
+                    if (match && match[1]) {
+                        const jsonData = JSON.parse(match[1])
+                        if (jsonData.sources && jsonData.sources.length > 0) {
+                            images = jsonData.sources[0].images
+                        }
+                    }
+                } catch (e) {
+                    console.log('Gagal parse ts_reader:', e.message)
+                }
+            }
+        })
+    }
+
+    const title = $('h1.entry-title').text().trim() || 'Chapter'
+    return { title, images: [...new Set(images)] }
+}
+
+async function buildPDF(images) {
+    return new Promise(async (resolve, reject) => {
+        try {
+            const doc = new PDFDocument({ autoFirstPage: false })
+            const buffers = []
+            
+            doc.on('data', chunk => buffers.push(chunk))
+            doc.on('end', () => resolve(Buffer.concat(buffers)))
+            doc.on('error', err => reject(err))
+
+            for (let imgUrl of images) {
+                try {
+                    const response = await axios.get(imgUrl, {
+                        responseType: 'arraybuffer',
+                        headers: {
+                            'Referer': base_url,
+                            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/109.0.0.0 Safari/537.36'
+                        }
+                    })
+                    const imgBuffer = Buffer.from(response.data)
+                    const img = doc.openImage(imgBuffer)
+                    doc.addPage({ size: [img.width, img.height], margin: 0 })
+                    doc.image(imgBuffer, 0, 0, { width: img.width, height: img.height })
+                } catch (imgErr) {
+                    console.error('Failed to load image for PDF:', imgUrl)
+                }
+            }
+            doc.end()
+        } catch (e) {
+            reject(e)
+        }
+    })
+}
+
+let handler = async (m, { conn, args, usedPrefix, command }) => {
+    let action = args[0] ? args[0].toLowerCase() : ''
+    let query = args.slice(1).join(' ')
+
+    if (!action) {
+        let usage = `┌˚₊ ๑│ ᴍ ᴀ ɴ ʜ ᴡ ᴀ  ᴍ ᴇ ɴ ᴜ │๑˚₊ 📚\n` +
+                    `┇ \n` +
+                    `│ 📌 *List Commands:*\n` +
+                    `│ 1. ${usedPrefix + command} search <judul>\n` +
+                    `│ 2. ${usedPrefix + command} detail <url_manhwa>\n` +
+                    `│ 3. ${usedPrefix + command} read <url_chapter>\n` +
+                    `│ 4. ${usedPrefix + command} latest\n` +
+                    `│ 5. ${usedPrefix + command} popular\n` +
+                    `┇ \n` +
+                    `└˚₊ ๑ ────────────── ๑˚₊\n` +
+                    `> © ERINE-AI`
+        return m.reply(usage)
+    }
+
+    await m.react('⏳')
+
+    try {
+        if (action === 'search') {
+            if (!query) return m.reply(`❌ Masukkan judul yang dicari cuy!\nContoh: ${usedPrefix + command} search solo leveling`)
+            
+            let res = await search(query)
+            if (!res.items.length) throw new Error('Manhwa tidak ditemukan.')
+
+            let txt = `┌˚₊ ๑│ ᴍ ᴀ ɴ ʜ ᴡ ᴀ  s ᴇ ᴀ ʀ ᴄ ʜ │๑˚₊ 🔍\n┇ \n`
+            res.items.slice(0, 10).forEach((v, i) => {
+                txt += `│ ${i + 1}. *${v.title}*\n`
+                txt += `│ ⭐️ *Rating:* ${v.rating}\n`
+                txt += `│ 📖 *Chapter:* ${v.chapter}\n`
+                txt += `│ 🔗 *Link:* ${v.url}\n`
+                txt += `│ \n`
+            })
+            txt += `└˚₊ ๑ ────────────── ๑˚₊\n> © ERINE-AI`
+            
+            await m.reply(txt)
+            await m.react('✅')
+
+        } else if (action === 'latest' || action === 'popular') {
+            let res = action === 'latest' ? await get_latest() : await get_popular()
+            
+            let txt = `┌˚₊ ๑│ ᴍ ᴀ ɴ ʜ ᴡ ᴀ  ${action.toUpperCase()} │๑˚₊ 🔥\n┇ \n`
+            res.items.slice(0, 10).forEach((v, i) => {
+                txt += `│ ${i + 1}. *${v.title}*\n`
+                txt += `│ ⭐️ *Rating:* ${v.rating}\n`
+                txt += `│ 📖 *Chapter:* ${v.chapter}\n`
+                txt += `│ 🔗 *Link:* ${v.url}\n`
+                txt += `│ \n`
+            })
+            txt += `└˚₊ ๑ ────────────── ๑˚₊\n> © ERINE-AI`
+            
+            await m.reply(txt)
+            await m.react('✅')
+
+        } else if (action === 'detail') {
+            if (!query) return m.reply(`❌ Masukkan URL manhwa cuy!\nContoh: ${usedPrefix + command} detail https://manhwalist02.asia/manga/...`)
+            
+            let res = await get_detail(query)
+            let txt = `┌˚₊ ๑│ ᴍ ᴀ ɴ ʜ ᴡ ᴀ  ᴅ ᴇ ᴛ ᴀ ɪ ʟ │๑˚₊ 📖\n` +
+                      `┇ \n` +
+                      `│ 📌 *Judul:* ${res.title}\n` +
+                      `│ ⭐️ *Rating:* ${res.rating}\n` +
+                      `│ 🎭 *Genre:* ${res.genres.join(', ')}\n` +
+                      `│ 📚 *Total Chapter:* ${res.total_chapters}\n` +
+                      `┇ \n` +
+                      `│ 📝 *Sinopsis:*\n` +
+                      `│ ${res.synopsis.substring(0, 500)}...\n` +
+                      `┇ \n` +
+                      `│ 🔗 *Chapter Pertama:* ${res.chapters[res.chapters.length - 1]?.url || '-'}\n` +
+                      `│ 🔗 *Chapter Terbaru:* ${res.chapters[0]?.url || '-'}\n` +
+                      `┇ \n` +
+                      `└˚₊ ๑ ────────────── ๑˚₊\n` +
+                      `> © ERINE-AI`
+
+            await conn.sendMessage(m.chat, { image: { url: res.cover }, caption: txt }, { quoted: m })
+            await m.react('✅')
+
+        } else if (action === 'read' || action === 'download') {
+            if (!query) return m.reply(`❌ Masukkan URL chapter cuy!\nContoh: ${usedPrefix + command} read https://manhwalist02.asia/...-chapter-1/`)
+            
+            m.reply('⏳ *Processing PDF...*\nMohon tunggu cuy, bot sedang mendownload gambar dan menjadikannya PDF (Mungkin butuh waktu agak lama karena total halaman).')
+            
+            let chapterData = await get_chapter_images(query)
+            if (!chapterData.images || !chapterData.images.length) throw new Error('Tidak ada gambar chapter yang ditemukan di link tersebut (Tembok lazy-load / error parsing script).')
+
+            let pdfBuffer = await buildPDF(chapterData.images)
+
+            let txt = `┌˚₊ ๑│ ᴍ ᴀ ɴ ʜ ᴡ ᴀ  ʀ ᴇ ᴀ ᴅ ᴇ ʀ │๑˚₊ 📥\n` +
+                      `┇ \n` +
+                      `│ 📖 *Judul:* ${chapterData.title}\n` +
+                      `│ 🖼️ *Total Page:* ${chapterData.images.length} Pages\n` +
+                      `┇ \n` +
+                      `└˚₊ ๑ ────────────── ๑˚₊\n` +
+                      `> © ERINE-AI`
+
+            await conn.sendMessage(m.chat, {
+                document: pdfBuffer,
+                fileName: `${chapterData.title.replace(/[^a-zA-Z0-9 ]/g, '')}.pdf`,
+                mimetype: 'application/pdf',
+                caption: txt
+            }, { quoted: m })
+
+            await m.react('✅')
+        }
+
+    } catch (e) {
+        console.error(e)
+        await m.react('❌')
+        m.reply(`┌˚₊ ๑│ s ʏ s ᴛ ᴇ ᴍ  ᴇ ʀ ʀ ᴏ ʀ │๑˚₊ ❌\n┇ Gagal memproses permintaan.\n│ *Detail:* ${e.message}\n└˚₊ ๑ ────────────── ๑˚₊\n> © ERINE-AI`)
+    }
+}
+
+handler.help = ['manhwa <menu>']
+handler.tags = ['internet']
+handler.command = /^manhwa$/i
+handler.limit = true
+
+export default handler
