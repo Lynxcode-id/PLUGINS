@@ -1,0 +1,36 @@
+/**
+ * ───「 FEATURE AUTHOR 」───
+ * 👤 Author     : maxz str - inf project team
+ * 📞 Contact    : +62 859-7427-8171
+ * 📢 Channel    : https://whatsapp.com/channel/0029VbAnuii6GcGCu73oep1i
+ * ⚠️ Note       : Keep credit to respect the creator!
+ * ─────────────────────────
+ * 📝 Plugin     : DeepSeek V2 AI Chat
+ */
+
+import axios from 'axios';
+
+let handler = async (m, { text, usedPrefix, command }) => {
+    if (!text) throw `*乂 DEEPSEEK V2 AI*\n\nSilakan masukkan pertanyaan!\nContoh: ${usedPrefix + command} halo`;
+
+    await m.react('⏳');
+
+    try {
+        const { data } = await axios.get(`https://r-bots-free-apis.co08.art/api/v1/api/deepseek-v3?q=${encodeURIComponent(text)}`);
+
+        let hasil = data.response || "Tidak ada jawaban.";
+
+        await m.reply(`*乂 DEEPSEEK - V2 CHAT*\n\n> ${hasil}\n\n*— © DeepSeek Engine v2*`);
+        await m.react('✅');
+    } catch (e) {
+        await m.react('❌');
+        m.reply(`❌ *Error:* ${e.message}`);
+    }
+};
+
+handler.help = ['deepseek2 <teks>'];
+handler.tags = ['ai'];
+handler.command = /^deepseek2$/i;
+handler.limit = true;
+
+export default handler;
