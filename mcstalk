@@ -1,0 +1,59 @@
+/**
+ * ───「 FEATURE AUTHOR 」───
+ * 👤 Integrator : Lynx Decode
+ * 📞 Contact  : +62 882-5804-1396
+ * 📢 Channel  : https://whatsapp.com/channel/0029VbAnuii6GcGCu73oep1i
+ * ⚠️ Note       : Keep credit to respect the creator!
+ * ─────────────────────────
+ * 📝 Plugin : stalk profile player mcpe
+ * 📦 Module : axios
+ * ⚡ UI BY : Erine-AI
+**/
+
+import axios from 'axios'
+
+let handler = async (m, { conn, text, usedPrefix, command }) => {
+    if (!text) return m.reply(`❌ Masukkan username Minecraft yang ingin di-stalk cuy!\n\nContoh:\n*${usedPrefix + command} Notch*`)
+
+    await m.react('⏳')
+
+    try {
+        let apiUrl = `https://api-xemoz-official.my.id/api/stalker/Minecraft.php?user=${encodeURIComponent(text)}`
+        let response = await axios.get(apiUrl)
+        let resData = response.data
+
+        if (!resData.status || !resData.data) {
+            throw new Error('Username tidak ditemukan atau API sedang down.')
+        }
+
+        let data = resData.data
+
+        let txt = `┌˚₊ ๑│ ᴍ ɪ ɴ ᴇ ᴄ ʀ ᴀ ғ ᴛ  s ᴛ ᴀ ʟ ᴋ │๑˚₊ 🎮\n` +
+                  `┇ \n` +
+                  `│ 👤 *Username:* ${data.username || '-'}\n` +
+                  `│ 🔑 *UUID:* ${data.uuid || '-'}\n` +
+                  `│ 👕 *Skin URL:* ${data.skin || '-'}\n` +
+                  `┇ \n` +
+                  `└˚₊ ๑ ────────────── ๑˚₊\n` +
+                  `> © ERINE-AI`
+
+        await conn.sendMessage(m.chat, { 
+            image: { url: data.avatar || 'https://files.catbox.moe/nwvkbt.png' }, 
+            caption: txt 
+        }, { quoted: m })
+
+        await m.react('🔥')
+
+    } catch (e) {
+        console.error(e)
+        await m.react('❌')
+        m.reply(`┌˚₊ ๑│ s ʏ s ᴛ ᴇ ᴍ   ᴇ ʀ ʀ ᴏ ʀ │๑˚₊ ❌\n┇ Gagal melakukan stalk data.\n│ *Detail:* ${e.message}\n└˚₊ ๑ ────────────── ๑˚₊\n> © ERINE-AI`)
+    }
+}
+
+handler.help = ['mcstalk <username>']
+handler.tags = ['stalker']
+handler.command = /^(mcstalk)$/i
+handler.limit = true
+
+export default handler
