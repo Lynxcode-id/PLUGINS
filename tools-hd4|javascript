@@ -1,0 +1,142 @@
+/**
+ * ───「 FEATURE AUTHOR 」───
+ * 👤 Integrator : Lynx Decode (Customized by Gemini)
+ * 📞 Contact    : +62 882-5804-1396
+ * 📢 Channel    : https://whatsapp.com/channel/0029VbAnuii6GcGCu73oep1i
+ * ⚠️ Note       : Keep credit to respect the creator!
+ * ─────────────────────────
+ * 📝 Plugin: HD3 Image Upscaler
+ */
+
+import axios from 'axios'
+import FormData from 'form-data'
+import fs from 'fs'
+import path from 'path'
+import os from 'os'
+
+const SCALE_RADIO = "2";
+const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+async function upscaleImage(imagePath) {
+    try {
+        if (!fs.existsSync(imagePath)) {
+            throw new Error(`File tidak ditemukan: ${imagePath}`);
+        }
+
+        const fileStream = fs.createReadStream(imagePath);
+        const fileName = path.basename(imagePath);
+        const formData = new FormData();
+        formData.append('file', fileStream, fileName);
+
+        const upload = await axios.post('https://imgupscaler.com/api/legacy/upload', formData, {
+            headers: {
+                ...formData.getHeaders(),
+                'User-Agent': 'Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Mobile Safari/537.36',
+                'Referer': 'https://imgupscaler.com/',
+                'Origin': 'https://imgupscaler.com'
+            }
+        });
+
+        const taskId = upload.data?.taskId || upload.data?.raw?.data?.code;
+        if (!taskId) {
+            throw new Error('Gagal mendapatkan Task ID');
+        }
+
+        let isSuccess = false;
+        let attempts = 0;
+        let downloadUrls = [];
+
+        while (!isSuccess) {
+            attempts++;
+            const res = await axios.post('https://imgupscaler.com/api/legacy/status', {
+                tool: "upscaler",
+                taskId: taskId,
+                scaleRadio: SCALE_RADIO
+            }, {
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json, text/plain, */*',
+                    'User-Agent': 'Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Mobile Safari/537.36',
+                    'Referer': 'https://imgupscaler.com/',
+                    'Origin': 'https://imgupscaler.com'
+                }
+            });
+
+            const status = res.data?.status;
+            if (status === 'success') {
+                isSuccess = true;
+                downloadUrls = res.data?.downloadUrls || res.data?.raw?.data?.downloadUrls;
+            } else {
+                await delay(5000);
+            }
+            
+            if (attempts > 30) { 
+                throw new Error('Timeout memproses gambar dari server.');
+            }
+        }
+
+        return {
+            succes: true,
+            taskId: taskId,
+            image_url: downloadUrls
+        };
+
+    } catch (error) {
+        return {
+            status: "error",
+            message: error.response ? JSON.stringify(error.response.data) : error.message
+        };
+    }
+}
+
+let handler = async (m, { conn, usedPrefix, command }) => {
+    let q = m.quoted ? m.quoted : m
+    let mime = (q.msg || q).mimetype || ''
+    
+    if (!mime.startsWith('image/')) {
+        return m.reply(`┌˚₊ ๑│ ʜ ᴅ ᴜ ᴘ ꜱ ᴄ ᴀ ʟ ᴇ │๑˚₊ 🎨\n┇ \n│ ❌ *Gambarnya mana cuy?*\n│ \n│ 📌 *Cara pakai:*\n│ Kirim gambar dengan caption ${usedPrefix + command} atau balas gambar.\n┇ \n└˚₊ ๑ ────────────── ๑˚₊\n> © ERINE-AI`)
+    }
+
+    await m.react('⏳')
+
+    let tempPath;
+    try {
+        let media = await q.download()
+        let ext = mime.split('/')[1] || 'jpg'
+        
+        tempPath = path.join(os.tmpdir(), `upscale_${Date.now()}.${ext}`)
+        fs.writeFileSync(tempPath, media)
+
+        const res = await upscaleImage(tempPath)
+
+        if (fs.existsSync(tempPath)) fs.unlinkSync(tempPath)
+
+        if (res.succes && res.image_url && res.image_url.length > 0) {
+            const resultUrl = res.image_url[0]
+
+            await conn.sendMessage(m.chat, {
+                image: { url: resultUrl },
+                caption: `┌˚₊ ๑│ ʜ ᴅ ᴜ ᴘ ꜱ ᴄ ᴀ ʟ ᴇ │๑˚₊ 🎨\n┇ \n│ ✅ *Berhasil dipertajam!*\n┇ \n└˚₊ ๑ ────────────── ๑˚₊\n> © ERINE-AI`
+            }, { quoted: m })
+
+            await m.react('✅')
+        } else {
+            throw new Error(res.message || 'Gagal memproses gambar dari API.')
+        }
+
+    } catch (error) {
+        console.error('[HD3 ERROR]', error)
+        
+        if (tempPath && fs.existsSync(tempPath)) fs.unlinkSync(tempPath)
+            
+        await m.react('❌')
+        m.reply(`┌˚₊ ๑│ ꜱ ʏ ꜱ ᴛ ᴇ ᴍ  ᴇ ʀ ʀ ᴏ ʀ │๑˚₊ ❌\n┇ Gagal meng-upscale gambar.\n┇ \n┇ *Detail:*\n┇ ${error.message || String(error)}\n└˚₊ ๑ ────────────── ๑˚₊\n> © ERINE-AI`)
+    }
+}
+
+handler.help = ['hd4']
+handler.tags = ['tools']
+handler.command = /^hd4$/i
+handler.limit = true
+
+export default handler
