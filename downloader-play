@@ -1,0 +1,84 @@
+/**
+ * ───「 FEATURE AUTHOR 」───
+ * 👤 Integrator : Lynx Decode
+ * 📞 Contact    : +62 882-5804-1396
+ * 📢 Channel    : https://whatsapp.com/channel/0029VbAnuii6GcGCu73oep1i
+ * ⚠️ Note       : Keep credit to respect the creator!
+ * ─────────────────────────
+ * 📝 Plugin     : YouTube Play
+ * 📦 Module    : yt-search + node-fetch
+ */
+
+import yts from "yt-search"
+import fetch from 'node-fetch'
+
+let handler = async (m, { conn, text, usedPrefix, command }) => {
+    const header = (title, emoji) => `┌˚₊ ๑│ ${title} │๑˚₊ ${emoji}\n┇ \n`
+    const footer = () => `\n┇ \n└˚₊ ๑ ────────────── ๑˚₊\n> © ERINE-AI`
+
+    if (!text) {
+        return m.reply(header('YT PLAY MP3', '🎵') + `│ ❌ *Mau cari lagu apa di YouTube?*\n│ *Contoh:* ${usedPrefix + command} Aftershock breakbeat` + footer())
+    }
+
+    await m.react('⏳')
+
+    try {
+        let searchResults = await yts(text)
+        let videos = searchResults.videos
+
+        if (!videos || videos.length === 0) {
+            throw new Error('Lagu tidak ditemukan di YouTube.')
+        }
+
+        let targetVideo = videos[0]
+        let videoUrl = targetVideo.url
+
+        let res = await fetch(`https://api.xrizal.my.id/api/downloader/ytmp3?url=${encodeURIComponent(videoUrl)}`, {
+            headers: { 'Accept': 'application/json' }
+        })
+        let json = await res.json()
+
+        if (!json.status || !json.result || !json.result.audio || json.result.audio.length === 0) {
+            throw new Error('Gagal mengunduh audio dari server.')
+        }
+
+        let data = json.result
+        let bestAudio = data.audio.find(a => a.quality === "131" || a.ext === "m4a") || data.audio[0]
+        let downloadUrl = bestAudio.url
+        let size = bestAudio.size || '-'
+
+        let teks = header('PLAY YOUTUBE', '🎧')
+        teks += `│ 🎵 *Judul    :* ${data.title || targetVideo.title}\n`
+        teks += `│ ⏳ *Durasi   :* ${data.duration || targetVideo.timestamp}\n`
+        teks += `│ 📦 *Ukuran   :* ${size}\n`
+        teks += `│ 👤 *Channel  :* ${targetVideo.author.name || '-'}\n`
+        teks += `│ 🔗 *Link YT  :* ${videoUrl}\n│\n`
+        teks += `│ _Audio sedang dikirim, mohon ditunggu..._`
+        teks += footer()
+
+        await conn.sendMessage(m.chat, {
+            image: { url: data.thumb || targetVideo.thumbnail },
+            caption: teks
+        }, { quoted: m })
+
+        await conn.sendMessage(m.chat, {
+            audio: { url: downloadUrl },
+            mimetype: 'audio/mpeg',
+            fileName: `${data.title || targetVideo.title}.mp3`
+        }, { quoted: m })
+
+        await m.react('✨')
+
+    } catch (e) {
+        console.error(e)
+        await m.react('❌')
+        m.reply(header('PLAY ERROR', '❌') + `│ ❌ *Terjadi kesalahan:*\n│ ${e.message}` + footer())
+    }
+}
+
+handler.help = ['play <pencarian>']
+handler.tags = ['downloader']
+handler.command = /^play$/i
+handler.limit = true
+
+export default handler
