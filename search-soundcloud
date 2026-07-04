@@ -1,0 +1,66 @@
+/**
+ * ───「 FEATURE AUTHOR 」───
+ * 👤 Integrator : Lynx Decode
+ * 📞 Contact    : +62 882-5804-1396
+ * 📢 Channel    : https://whatsapp.com/channel/0029VbAnuii6GcGCu73oep1i
+ * ⚠️ Note       : Keep credit to respect the creator!
+ * ─────────────────────────
+ * 📝 Plugin     : SoundCloud Search
+ */
+
+import fetch from 'node-fetch'
+
+let handler = async (m, { conn, text, usedPrefix, command }) => {
+    const header = (title, emoji) => `┌˚₊ ๑│ ${title} │๑˚₊ ${emoji}\n┇ \n`
+    const footer = () => `\n└˚₊ ๑ ────────────── ๑˚₊\n> © ERINE-AI`
+
+    if (!text) {
+        return m.reply(header('SOUNDCLOUD SEARCH', '🎵') + `│ ❌ *Mau cari apa di SoundCloud?*\n│ *Contoh:* ${usedPrefix + command} a thousand years` + footer())
+    }
+
+    await m.react('⏳')
+
+    try {
+        let res = await fetch(`https://api.nexray.eu.cc/search/soundcloud?q=${encodeURIComponent(text)}`)
+        let json = await res.json()
+
+        if (!json.status || !json.result || json.result.length === 0) {
+            throw new Error('Lagu tidak ditemukan atau server sedang gangguan.')
+        }
+
+        let teks = header('SOUNDCLOUD SEARCH', '🎵')
+        
+        let results = json.result.slice(0, 5)
+        
+        for (let i = 0; i < results.length; i++) {
+            let v = results[i]
+            teks += `│ ${i + 1}. *${v.title}*\n`
+            teks += `│ 👤 *Artist   :* ${v.author.name || '-'}\n`
+            teks += `│ ⏱️ *Durasi   :* ${v.duration || '-'}\n`
+            teks += `│ ▶️ *Plays    :* ${v.play_count || '-'} | ❤️ ${v.like_count || '-'}\n`
+            teks += `│ 🔗 *Link     :* ${v.url}\n`
+            teks += i === results.length - 1 ? `┇ ` : `┇ \n`
+        }
+        
+        teks += footer()
+
+        await conn.sendMessage(m.chat, {
+            image: { url: results[0].thumbnail },
+            caption: teks
+        }, { quoted: m })
+
+        await m.react('✨')
+
+    } catch (e) {
+        console.error(e)
+        await m.react('❌')
+        m.reply(header('SEARCH ERROR', '❌') + `│ ❌ *Terjadi kesalahan:*\n│ ${e.message}` + footer())
+    }
+}
+
+handler.help = ['soundcloudsearch <pencarian>', 'scsearch <pencarian>']
+handler.tags = ['search']
+handler.command = /^(soundcloudsearch|scsearch)$/i
+handler.limit = true
+
+export default handler
