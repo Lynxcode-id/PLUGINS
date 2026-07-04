@@ -1,0 +1,35 @@
+/**
+ * ───「 FEATURE AUTHOR 」───
+ * 👤 Author     : maxz str - inf project team
+ * 📞 Contact    : +62 859-7427-8171
+ * 📢 Channel    : https://whatsapp.com/channel/0029VbAnuii6GcGCu73oep1i
+ * ⚠️ Note       : Keep credit to respect the creator!
+ * ─────────────────────────
+ * 📝 Plugin     : Bible AI Chat
+ */
+
+import axios from 'axios';
+
+let handler = async (m, { text, usedPrefix, command }) => {
+    if (!text) throw `Contoh: ${usedPrefix + command} apa itu iman?`;
+
+    await m.react('⏳');
+
+    try {
+        const { data } = await axios.get(`https://r-bots-free-apis.co08.art/api/v1/api/bible-ai?q=${encodeURIComponent(text)}`);
+        let hasil = data.reply || "Maaf, sistem tidak merespon.";
+
+        await m.reply(`*— [ BIBLE AI ] —*\n\n${hasil}`);
+        await m.react('✅');
+    } catch (e) {
+        await m.react('❌');
+        m.reply('Error: Gagal terhubung ke server.');
+    }
+};
+
+handler.help = ['bible <teks>'];
+handler.tags = ['ai'];
+handler.command = /^bible$/i;
+handler.limit = true;
+
+export default handler;
