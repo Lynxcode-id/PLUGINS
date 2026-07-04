@@ -1,141 +1,85 @@
 /**
  * ───「 FEATURE AUTHOR 」───
- * 👤 Integrator : Lynx Decode (Customized by Gemini)
- * 📞 Contact    : +62 882-5804-1396
- * 📢 Channel    : https://whatsapp.com/channel/0029VbAnuii6GcGCu73oep1i
+ * 👤 Integrator : Lynx Decode
+ * 📞 Contact  : +62 882-5804-1396
+ * 📢 Channel  : https://whatsapp.com/channel/0029VbAnuii6GcGCu73oep1i
  * ⚠️ Note       : Keep credit to respect the creator!
+ * 🌟 Credit canvas : Riyx <- mohon maaf jika salah penyebutan
+ * ⛓️‍💥 Original : https://whatsapp.com/channel/0029Vb7TDPy0AgWKUhM7jQ2k
  * ─────────────────────────
- * 📝 Plugin: HD3 Image Upscaler
- */
+ * 📝 Plugin : Tools enhance - hd foto
+ * 🎨 Module : axios + formdata-node
+**/
 
 import axios from 'axios'
-import FormData from 'form-data'
-import fs from 'fs'
-import path from 'path'
-import os from 'os'
-
-const SCALE_RADIO = "2";
-const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
-
-async function upscaleImage(imagePath) {
-    try {
-        if (!fs.existsSync(imagePath)) {
-            throw new Error(`File tidak ditemukan: ${imagePath}`);
-        }
-
-        const fileStream = fs.createReadStream(imagePath);
-        const fileName = path.basename(imagePath);
-        const formData = new FormData();
-        formData.append('file', fileStream, fileName);
-
-        const upload = await axios.post('https://imgupscaler.com/api/legacy/upload', formData, {
-            headers: {
-                ...formData.getHeaders(),
-                'User-Agent': 'Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Mobile Safari/537.36',
-                'Referer': 'https://imgupscaler.com/',
-                'Origin': 'https://imgupscaler.com'
-            }
-        });
-
-        const taskId = upload.data?.taskId || upload.data?.raw?.data?.code;
-        if (!taskId) {
-            throw new Error('Gagal mendapatkan Task ID');
-        }
-
-        let isSuccess = false;
-        let attempts = 0;
-        let downloadUrls = [];
-
-        while (!isSuccess) {
-            attempts++;
-            const res = await axios.post('https://imgupscaler.com/api/legacy/status', {
-                tool: "upscaler",
-                taskId: taskId,
-                scaleRadio: SCALE_RADIO
-            }, {
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Accept': 'application/json, text/plain, */*',
-                    'User-Agent': 'Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Mobile Safari/537.36',
-                    'Referer': 'https://imgupscaler.com/',
-                    'Origin': 'https://imgupscaler.com'
-                }
-            });
-
-            const status = res.data?.status;
-            if (status === 'success') {
-                isSuccess = true;
-                downloadUrls = res.data?.downloadUrls || res.data?.raw?.data?.downloadUrls;
-            } else {
-                await delay(5000);
-            }
-            
-            if (attempts > 30) { 
-                throw new Error('Timeout memproses gambar dari server.');
-            }
-        }
-
-        return {
-            succes: true,
-            taskId: taskId,
-            image_url: downloadUrls
-        };
-
-    } catch (error) {
-        return {
-            status: "error",
-            message: error.response ? JSON.stringify(error.response.data) : error.message
-        };
-    }
-}
+import { FormData, Blob } from 'formdata-node'
+import uploadImage from '../lib/uploadImage.js'
 
 let handler = async (m, { conn, usedPrefix, command }) => {
     let q = m.quoted ? m.quoted : m
     let mime = (q.msg || q).mimetype || ''
     
-    if (!mime.startsWith('image/')) {
-        return m.reply(`┌˚₊ ๑│ ʜ ᴅ 1 6  ᴜ ᴘ ꜱ ᴄ ᴀ ʟ ᴇ │๑˚₊ 🎨\n┇ \n│ ❌ *Gambarnya mana cuy?*\n│ \n│ 📌 *Cara pakai:*\n│ Kirim gambar dengan caption ${usedPrefix + command} atau balas gambar.\n┇ \n└˚₊ ๑ ────────────── ๑˚₊\n> © ERINE-AI`)
+    if (!/image\/(jpe?g|png)/.test(mime)) {
+        return m.reply(`📸 Balas atau kirim gambar dengan caption *${usedPrefix + command}* untuk menjadikannya HD cuy!`)
     }
 
     await m.react('⏳')
 
-    let tempPath;
     try {
-        let media = await q.download()
-        let ext = mime.split('/')[1] || 'jpg'
-        
-        tempPath = path.join(os.tmpdir(), `upscale_${Date.now()}.${ext}`)
-        fs.writeFileSync(tempPath, media)
-
-        const res = await upscaleImage(tempPath)
-
-        if (fs.existsSync(tempPath)) fs.unlinkSync(tempPath)
-
-        if (res.succes && res.image_url && res.image_url.length > 0) {
-            const resultUrl = res.image_url[0]
-
-            await conn.sendMessage(m.chat, {
-                image: { url: resultUrl },
-                caption: `┌˚₊ ๑│ ʜ ᴅ 1 6  ᴜ ᴘ ꜱ ᴄ ᴀ ʟ ᴇ │๑˚₊ 🎨\n┇ \n│ ✅ *Berhasil dipertajam!*\n┇ \n└˚₊ ๑ ────────────── ๑˚₊\n> © ERINE-AI`
-            }, { quoted: m })
-
-            await m.react('✅')
-        } else {
-            throw new Error(res.message || 'Gagal memproses gambar dari API.')
+        let imgBuffer = await q.download()
+        let imageUrl = ''
+        try {
+            imageUrl = await uploadImage(imgBuffer)
+        } catch (uploadError) {
+            console.error('Lib uploadImage error, mencoba API Litterbox...', uploadError)
+            
+            let formData = new FormData()
+            let blob = new Blob([imgBuffer], { type: mime })
+            formData.append('file', blob, 'upload_file')
+            let res = await axios.post('https://api.shinzu.web.id/api/upload/litterbox', formData, {
+                headers: { 'Accept': 'application/json' }
+            })
+            
+            if (res.data?.status && res.data?.result?.url) {
+                imageUrl = res.data.result.url
+            } else {
+                throw new Error('Semua uploader gagal memproses gambar.')
+            }
         }
 
-    } catch (error) {
-        console.error('[HD3 ERROR]', error)
+        const imageStream = await axios.get(imageUrl, { responseType: 'arraybuffer' })
+        const bufferStream = Buffer.from(imageStream.data, 'binary')
         
-        if (tempPath && fs.existsSync(tempPath)) fs.unlinkSync(tempPath)
-            
+        const formAI = new FormData()
+        const blobAI = new Blob([bufferStream], { type: 'image/jpeg' })
+        formAI.append('file', blobAI, 'image.jpg')
+
+        const resultAI = await axios.post('https://ai-services.visual-paradigm.com/api/super-resolution/file', formAI, {
+            headers: {
+                'origin': 'https://online.visual-paradigm.com',
+                'referer': 'https://online.visual-paradigm.com/',
+                'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/109.0.0.0 Safari/537.36'
+            },
+            responseType: 'arraybuffer'
+        })
+
+        const finalBuffer = Buffer.from(resultAI.data)
+        await conn.sendMessage(m.chat, { 
+            image: finalBuffer, 
+            caption: '✨ *Success!* Gambar lu berhasil diubah jadi HD cuy.\n\n» ᴇʀɪɴᴇ-ᴍᴅ ᴍᴀɴᴀɢᴇᴍᴇɴᴛ «' 
+        }, { quoted: m })
+        
+        await m.react('🔥')
+
+    } catch (e) {
+        console.error(e)
         await m.react('❌')
-        m.reply(`┌˚₊ ๑│ ꜱ ʏ ꜱ ᴛ ᴇ ᴍ  ᴇ ʀ ʀ ᴏ ʀ │๑˚₊ ❌\n┇ Gagal meng-upscale gambar.\n┇ \n┇ *Detail:*\n┇ ${error.message || String(error)}\n└˚₊ ๑ ────────────── ๑˚₊\n> © ERINE-AI`)
+        m.reply(`❌ *Error:* Gagal memproses gambar menjadi HD.\n\`\`\`${e.message}\`\`\``)
     }
 }
 
 handler.help = ['hd3']
-handler.tags = ['tools']
+handler.tags = ['ai']
 handler.command = /^hd3$/i
 handler.limit = true
 
