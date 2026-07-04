@@ -1,0 +1,168 @@
+/**
+ * ───「 FEATURE AUTHOR 」───
+ * 👤 Integrator : Lynx Decode
+ * 📞 Contact  : +62 882-5804-1396
+ * 📢 Channel  : https://whatsapp.com/channel/0029VbAnuii6GcGCu73oep1i
+ * ⚠️ Note       : Keep credit to respect the creator!
+ * ─────────────────────────
+ * 📝 Plugin : Alight motion send - verify
+ * 📦 Module : axios
+ * ⚡ UI BY : Erine-AI
+**/
+
+import axios from 'axios'
+
+const API_KEY = 'apikeymu' // beli apikeynya, jangan manja modal dikit jadi org
+const BASE_URL = 'https://api.jerexd.my.id/api/am'
+
+async function sendVerification(email) {
+    try {
+        const response = await axios.get(`${BASE_URL}/send`, {
+            params: { apikey: API_KEY, email: email },
+            timeout: 30000
+        })
+        if (!response.data?.status) throw new Error(response.data?.message || 'Gagal mengirim verifikasi')
+        return response.data
+    } catch (error) {
+        throw new Error(error.response?.data?.message || error.response?.data?.error || error.message || 'Gagal mengirim verifikasi')
+    }
+}
+
+async function verifyAccount(email, link) {
+    try {
+        const response = await axios.get(`${BASE_URL}/verif`, {
+            params: { apikey: API_KEY, email: email, link: link },
+            timeout: 30000
+        })
+        if (!response.data?.status) throw new Error(response.data?.message || 'Gagal verifikasi')
+        return response.data
+    } catch (error) {
+        throw new Error(error.response?.data?.message || error.response?.data?.error || error.message || 'Gagal verifikasi')
+    }
+}
+
+function formatDuration(duration) {
+    if (!duration || duration === '-' || duration === '') return '1 Tahun'
+    const durationMap = {
+        '1_year': '1 Tahun', '1y': '1 Tahun', '1 Tahun': '1 Tahun',
+        '1_month': '1 Bulan', '1m': '1 Bulan', '1 Bulan': '1 Bulan',
+    }
+    return durationMap[duration] || duration
+}
+
+let handler = async (m, { conn, text, usedPrefix, command, isOwner, isPrems }) => {
+    if (!isOwner && !isPrems) return m.reply('❌ Fitur ini khusus Owner & User Premium.')
+
+    let usage = `┌˚₊ ๑│ ᴀ ʟ ɪ ɢ ʜ ᴛ  ᴍ ᴏ ᴛ ɪ ᴏ ɴ │๑˚₊ 🎟️\n` +
+                `┇ \n` +
+                `│ 📌 *List Commands:*\n` +
+                `│ 1. ${usedPrefix + command} send <email>\n` +
+                `│ 2. ${usedPrefix + command} verif <email>|<link>\n` +
+                `┇ \n` +
+                `│ 💡 *Contoh Penggunaan:*\n` +
+                `│ ${usedPrefix + command} send user@gmail.com\n` +
+                `│ ${usedPrefix + command} verif user@gmail.com|https://...\n` +
+                `┇ \n` +
+                `└˚₊ ๑ ────────────── ๑˚₊\n` +
+                `> © ERINE-AI`
+
+    if (!text) return m.reply(usage)
+
+    const args = text.trim().split(/\s+/)
+    const action = args[0]?.toLowerCase()
+
+    if (action === 'send') {
+        const email = args[1]
+        if (!email || !email.includes('@')) return m.reply(`┌˚₊ ๑│ s ʏ s ᴛ ᴇ ᴍ   ᴇ ʀ ʀ ᴏ ʀ │๑˚₊ ❌\n┇ Format email tidak valid!\n│ *Contoh:* ${usedPrefix + command} send example@gmail.com\n└˚₊ ๑ ────────────── ๑˚₊\n> © ERINE-AI`)
+
+        await m.react('⏳')
+
+        try {
+            await sendVerification(email)
+            let reply = `┌˚₊ ๑│ ᴠ ᴇ ʀ ɪ ꜰ  s ᴇ ɴ ᴛ │๑˚₊ 📧\n` +
+                        `┇ \n` +
+                        `│ 👤 *Email:* ${email}\n` +
+                        `│ 📊 *Status:* Berhasil Terkirim\n` +
+                        `│ 🕒 *Waktu:* ${new Date().toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' })}\n` +
+                        `┇ \n` +
+                        `│ 📝 *Langkah Selanjutnya:*\n` +
+                        `│ 1. Buka kotak masuk email / spam.\n` +
+                        `│ 2. Cari email dari Alight Creative.\n` +
+                        `│ 3. *Tahan* tombol "Login ke Alight".\n` +
+                        `│ 4. Pilih "Salin URL" (*JANGAN DIKLIK*).\n` +
+                        `│ 5. Balas ke bot dengan format:\n` +
+                        `│    ${usedPrefix + command} verif ${email}|<link>\n` +
+                        `┇ \n` +
+                        `└˚₊ ๑ ────────────── ๑˚₊\n` +
+                        `> © ERINE-AI`
+
+            await m.reply(reply)
+            await m.react('✅')
+        } catch (error) {
+            await m.react('❌')
+            m.reply(`┌˚₊ ๑│ s ʏ s ᴛ ᴇ ᴍ   ᴇ ʀ ʀ ᴏ ʀ │๑˚₊ ❌\n┇ Gagal mengirim verifikasi.\n│ *Detail:* ${error.message}\n└˚₊ ๑ ────────────── ๑˚₊\n> © ERINE-AI`)
+        }
+
+    } else if (action === 'verif') {
+        const argsWithoutAction = args.slice(1)
+        let email, link
+
+        if (argsWithoutAction.length >= 1) {
+            const firstArg = argsWithoutAction[0]
+            if (firstArg.includes('|')) {
+                const [emailPart, linkPart] = firstArg.split('|')
+                email = emailPart.trim()
+                link = linkPart.trim()
+            } else if (argsWithoutAction.length >= 2) {
+                email = argsWithoutAction[0]
+                link = argsWithoutAction.slice(1).join(' ')
+            } else {
+                link = firstArg
+                email = null
+            }
+        }
+
+        if (!link || !link.startsWith('http')) return m.reply(`┌˚₊ ๑│ s ʏ s ᴛ ᴇ ᴍ   ᴇ ʀ ʀ ᴏ ʀ │๑˚₊ ❌\n┇ Format link salah!\n│ *Contoh:* ${usedPrefix + command} verif user@gmail.com|https://...\n└˚₊ ๑ ────────────── ๑˚₊\n> © ERINE-AI`)
+        if (email && !email.includes('@')) return m.reply(`┌˚₊ ๑│ s ʏ s ᴛ ᴇ ᴍ   ᴇ ʀ ʀ ᴏ ʀ │๑˚₊ ❌\n┇ Format email tidak valid!\n└˚₊ ๑ ────────────── ๑˚₊\n> © ERINE-AI`)
+        if (!email) return m.reply(`┌˚₊ ๑│ s ʏ s ᴛ ᴇ ᴍ   ᴇ ʀ ʀ ᴏ ʀ │๑˚₊ ❌\n┇ Email tidak ditemukan!\n│ *Contoh:* ${usedPrefix + command} verif user@gmail.com|https://...\n└˚₊ ๑ ────────────── ๑˚₊\n> © ERINE-AI`)
+
+        await m.react('⏳')
+
+        try {
+            const result = await verifyAccount(email, link)
+            const duration = formatDuration(result.data?.duration)
+
+            let reply = `┌˚₊ ๑│ ᴠ ᴇ ʀ ɪ ꜰ  s ᴜ ᴄ ᴄ ᴇ s s │๑˚₊ ✅\n` +
+                        `┇ \n` +
+                        `│ 👤 *Email:* ${email}\n` +
+                        `│ 🎟️ *Status:* Premium Aktif\n` +
+                        `│ ⏳ *Durasi:* ${duration}\n` +
+                        `│ 🕒 *Waktu:* ${new Date().toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' })}\n` +
+                        `┇ \n` +
+                        `│ 📝 *Langkah Terakhir:*\n` +
+                        `│ 1. Buka aplikasi Alight Motion.\n` +
+                        `│ 2. Pilih "Masuk dengan Email".\n` +
+                        `│ 3. Masukkan email di atas.\n` +
+                        `│ 4. *Penting:* Jangan login via Google!\n` +
+                        `┇ \n` +
+                        `└˚₊ ๑ ────────────── ๑˚₊\n` +
+                        `> © ERINE-AI`
+
+            await m.reply(reply)
+            await m.react('✅')
+        } catch (error) {
+            await m.react('❌')
+            let errorDetail = error.message.includes('kadaluwarsa') || error.message.includes('expired') ? 'Link kadaluwarsa. Kirim ulang dengan .am send <email>' : error.message
+            m.reply(`┌˚₊ ๑│ s ʏ s ᴛ ᴇ ᴍ   ᴇ ʀ ʀ ᴏ ʀ │๑˚₊ ❌\n┇ Gagal verifikasi akun.\n│ *Detail:* ${errorDetail}\n└˚₊ ๑ ────────────── ๑˚₊\n> © ERINE-AI`)
+        }
+    } else {
+        return m.reply(usage)
+    }
+}
+
+handler.help = ['am <send|verif>']
+handler.tags = ['tools']
+handler.command = /^(am|alightmotion)$/i
+handler.premium = true
+
+export default handler
