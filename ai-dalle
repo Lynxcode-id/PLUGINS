@@ -1,1 +1,36 @@
--upplugin ai-dalle
+/**
+ * ───「 FEATURE AUTHOR 」───
+ * 👤 Author     : maxz str - inf project team
+ * 📞 Contact    : +62 859-7427-8171
+ * 📢 Channel    : https://whatsapp.com/channel/0029VbAnuii6GcGCu73oep1i
+ * ⚠️ Note       : Keep credit to respect the creator!
+ * ─────────────────────────
+ * 📝 Plugin     : Dalle AI Image Generator
+ */
+
+let handler = async (m, { conn, text, usedPrefix, command }) => {
+    if (!text) throw `Mau gambar apa? Contoh: ${usedPrefix + command} a cute cat`;
+
+    await m.react('⏳');
+
+    try {
+        let url = `https://r-bots-free-apis.co08.art/api/v1/api/dalle?q=${encodeURIComponent(text)}`;
+        
+        await conn.sendMessage(m.chat, { 
+            image: { url: url }, 
+            caption: `*— [ DALLE AI IMAGE ] —*\n\nHasil generate untuk: ${text}` 
+        }, { quoted: m });
+        
+        await m.react('✅');
+    } catch (e) {
+        await m.react('❌');
+        m.reply('Error: Gagal memproses gambar dari Dalle AI.');
+    }
+};
+
+handler.help = ['dalle <teks>'];
+handler.tags = ['ai'];
+handler.command = /^dalle$/i;
+handler.limit = true;
+
+export default handler;
