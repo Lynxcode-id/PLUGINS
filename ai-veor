@@ -1,0 +1,43 @@
+/**
+ * ───「 FEATURE AUTHOR 」───
+ * 👤 Author     : maxz str - inf project team
+ * 📞 Contact    : +62 859-7427-8171
+ * 📢 Channel    : https://whatsapp.com/channel/0029VbAnuii6GcGCu73oep1i
+ * ⚠️ Note       : Keep credit to respect the creator!
+ * ─────────────────────────
+ * 📝 Plugin     : Veor AI 
+ */
+
+import axios from 'axios';
+
+let handler = async (m, { text, usedPrefix, command }) => {
+    if (!text) throw `* VEOR AI *\n\nMasukkan pesan untuk Veor!\nContoh: ${usedPrefix + command} siapa tuanmu?`;
+
+    await m.react('⏳');
+
+    try {
+        const persona = "Kamu adalah Veor dari anime The Barbarian King Princess. Gaya bicaramu tegas, dingin, setia, dan hanya tunduk pada tuannya. Gunakan bahasa yang elegan namun lugas.";
+        
+        const { data } = await axios.get(`https://r-bots-free-apis.co08.art/api/v1/api/gptlogic`, {
+            params: {
+                q: text,
+                prompt: persona
+            }
+        });
+
+        let hasil = data.result || data.reply || data.response || "Veor sedang tidak ingin bicara.";
+
+        await m.reply(`╭───「 *VEOR AI * 」\n│\n│ ${hasil}\n│\n╰───────────────\n📢 *Ikuti Saluran Kami:* https://whatsapp.com/channel/0029VbAnuii6GcGCu73oep1i`);
+        await m.react('✅');
+    } catch (e) {
+        await m.react('❌');
+        m.reply(`❌ *Error:* Gagal terhubung ke server.\n${e.message}`);
+    }
+};
+
+handler.help = ['veor <teks>'];
+handler.tags = ['ai'];
+handler.command = /^veor$/i;
+handler.limit = true;
+
+export default handler;
