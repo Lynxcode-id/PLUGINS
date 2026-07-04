@@ -1,0 +1,59 @@
+/**
+ * ───「 FEATURE AUTHOR 」───
+ * 👤 Author     : maxz str - inf project team
+ * 📞 Contact    : +62 859-7427-8171
+ * 📢 Channel    : https://whatsapp.com/channel/0029VbAnuii6GcGCu73oep1i
+ * ⚠️ Note       : Keep credit to respect the creator!
+ * ─────────────────────────
+ * 📝 Plugin     : Random Image
+ */
+
+import axios from 'axios';
+import { generateWAMessageFromContent, proto } from '@whiskeysockets/baileys';
+
+async function sendInteractiveButtons(conn, jid, text, buttons, quoted) {
+    let msg = generateWAMessageFromContent(jid, {
+        viewOnceMessage: {
+            message: {
+                interactiveMessage: proto.Message.InteractiveMessage.fromObject({
+                    body: { text },
+                    header: { hasMediaAttachment: false },
+                    nativeFlowMessage: { buttons }
+                })
+            }
+        }
+    }, { quoted });
+    return await conn.relayMessage(jid, msg.message, { messageId: msg.key.id });
+}
+
+let handler = async (m, { conn }) => {
+    await m.react("⏳");
+
+    try {
+        const { data } = await axios.get(`https://r-bots-free-apis.co08.art/api/v1/api/randomimage`);
+        const imageUrl = data.responce;
+
+        if (!imageUrl) throw "URL Gambar tidak ditemukan.";
+
+        await conn.sendMessage(m.chat, { image: { url: imageUrl }, caption: "✨ *RANDOM IMAGE*" }, { quoted: m });
+
+        let buttons = [{
+            name: "cta_url",
+            buttonParamsJson: JSON.stringify({
+                display_text: "🌐 Buka Gambar Asli",
+                url: imageUrl,
+                merchant_url: imageUrl
+            })
+        }];
+
+        await sendInteractiveButtons(conn, m.chat, "Klik untuk buka di browser:", buttons, m);
+        await m.react("✅");
+    } catch (e) {
+        await m.react("❌");
+        m.reply(`❌ Gagal: ${e.message}`);
+    }
+}
+
+handler.command = /^randomimage$/i;
+handler.limit = true;
+export default handler;
