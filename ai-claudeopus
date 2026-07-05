@@ -1,0 +1,36 @@
+/**
+ * ───「 FEATURE AUTHOR 」───
+ * 👤 Author     : Lynx decode
+ * 📞 Contact    : +62 882-5804-1396
+ * 📢 Channel    : https://whatsapp.com/channel/0029VbAnuii6GcGCu73oep1i
+ * ⚠️ Note       : Keep credit to respect the creator!
+ * ─────────────────────────
+ * 📝 Plugin     : Claude Opus AI
+ */
+
+import axios from 'axios';
+
+let handler = async (m, { text, usedPrefix, command }) => {
+    if (!text) throw `*乂 CLAUDE OPUS AI*\n\nMasukkan pesan untuk Claude!\nContoh: ${usedPrefix + command} hai`;
+
+    await m.react('⏳');
+
+    try {
+        const { data } = await axios.get(`https://api.synoxcloud.xyz/ai-chat/claude-opus-4.8?pesan=${encodeURIComponent(text)}`);
+
+        let hasil = data.result.reply || "Maaf, Claude sedang tidak bisa merespon.";
+
+        await m.reply(hasil);
+        await m.react('✅');
+    } catch (e) {
+        await m.react('❌');
+        m.reply(`❌ *Error:* ${e.message}`);
+    }
+};
+
+handler.help = ['claudeopus <teks>'];
+handler.tags = ['ai'];
+handler.command = /^claudeopus$/i;
+handler.limit = true;
+
+export default handler;
