@@ -1,0 +1,61 @@
+/**
+ * ───「 FEATURE AUTHOR 」───
+ * 👤 Author     : Lynx decode
+ * 📞 Contact    : +62 882-5804-1396
+ * 📢 Channel    : https://whatsapp.com/channel/0029VbAnuii6GcGCu73oep1i
+ * ⚠️ Note       : Keep credit to respect the creator!
+ * ─────────────────────────
+ * 📝 Plugin     : To Anime (Universal Check)
+ */
+
+import fetch from 'node-fetch';
+import { FormData, Blob } from 'formdata-node';
+
+let handler = async (m, { conn }) => {
+    let q = m.quoted ? m.quoted : m;
+    let mime = (q.msg || q).mimetype || '';
+    
+    if (!mime || !mime.includes('image')) return m.reply('Reply foto yang ingin diubah menjadi anime!');
+
+    await m.react('⏳');
+
+    try {
+        let media = await q.download();
+        let formData = new FormData();
+        formData.append('file', new Blob([media], { type: mime }), 'upload_file');
+
+        let res = await fetch('https://api.shinzu.web.id/api/upload/litterbox', {
+            method: 'POST',
+            body: formData
+        });
+        let json = await res.json();
+        if (!json.status || !json.result) throw new Error('Gagal upload media.');
+        
+        let ppurl = json.result.url;
+        let apiUrl = `https://api.cuki.biz.id/api/nanobanana/toanime?apikey=cuki-x&url=${encodeURIComponent(ppurl)}`;
+        
+        let response = await fetch(apiUrl);
+        let contentType = response.headers.get('content-type');
+
+        if (contentType && contentType.includes('application/json')) {
+            let data = await response.json();
+            if (!data.status && data.result) throw new Error(data.message || "Gagal convert.");
+            await conn.sendMessage(m.chat, { image: { url: data.result }, caption: "✨ *ANIME STYLE GENERATED*" }, { quoted: m });
+        } else {
+            let buffer = Buffer.from(await response.arrayBuffer());
+            await conn.sendMessage(m.chat, { image: buffer, caption: "✨ *ANIME STYLE GENERATED*" }, { quoted: m });
+        }
+
+        await m.react('✅');
+    } catch (e) {
+        await m.react('❌');
+        m.reply(`❌ Gagal: ${e.message}`);
+    }
+};
+
+handler.help = ['toanime'];
+handler.tags = ['ai'];
+handler.command = /^toanime$/i;
+handler.limit = true;
+
+export default handler;
