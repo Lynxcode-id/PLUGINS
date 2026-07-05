@@ -1,0 +1,63 @@
+/**
+ * ───「 FEATURE AUTHOR 」───
+ * 👤 Author     : maxz str - inf project team
+ * 📞 Contact    : +62 859-7427-8171
+ * 📢 Channel    : https://whatsapp.com/channel/0029VbAnuii6GcGCu73oep1i
+ * ⚠️ Note       : Keep credit to respect the creator!
+ * ─────────────────────────
+ * 📝 Plugin     : Fake Wafat Generator (Full)
+ */
+
+import fetch from 'node-fetch';
+import { FormData, Blob } from 'formdata-node';
+
+let handler = async (m, { conn, text }) => {
+    let q = m.quoted ? m.quoted : m;
+    let mime = (q.msg || q).mimetype || '';
+    
+    if (!text) return m.reply(`Format salah!\nContoh: .fakewafat Nama|Lahir|Wafat\n\nContoh: .fakewafat Papa Ijhat|1992|2029`);
+    if (!mime || !mime.includes('image')) return m.reply('Reply foto untuk dijadikan foto wafat!');
+
+    let [nama, lahir, wafat] = text.split('|');
+    if (!nama || !lahir || !wafat) return m.reply('Format harus Nama|Lahir|Wafat!');
+
+    await m.react("⏳");
+
+    try {
+        let media = await q.download();
+        let formData = new FormData();
+        formData.append('foto', new Blob([media], { type: mime }), 'image.jpg');
+        formData.append('nama', nama);
+        formData.append('lahir', lahir);
+        formData.append('wafat', wafat);
+
+        let response = await fetch("https://api.kyzzz.eu.cc/api/maker/fake-wafat?apikey=kyzz7847824970484", {
+            method: 'POST',
+            body: formData
+        });
+
+        let contentType = response.headers.get('content-type');
+        if (contentType && contentType.includes('application/json')) {
+            let data = await response.json();
+            throw new Error(data.message || "Gagal memproses gambar.");
+        } else {
+            let buffer = Buffer.from(await response.arrayBuffer());
+            await conn.sendMessage(m.chat, { 
+                image: buffer, 
+                caption: `✨ *R.I.P ${nama}*` 
+            }, { quoted: m });
+        }
+
+        await m.react("✅");
+    } catch (e) {
+        await m.react("❌");
+        m.reply(`❌ Gagal: ${e.message}`);
+    }
+}
+
+handler.help = ['fakewafat <nama|lahir|wafat>'];
+handler.tags = ['maker'];
+handler.command = /^fakewafat$/i;
+handler.limit = true;
+
+export default handler;
