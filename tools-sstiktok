@@ -1,0 +1,42 @@
+/**
+ * ───「 FEATURE AUTHOR 」───
+ * 👤 Author     : Lynx Decode
+ * 📞 Contact    : +62 882-5804-1396
+ * 📢 Channel    : https://whatsapp.com/channel/0029VbAnuii6GcGCu73oep1i
+ * ⚠️ Note       : Keep credit to respect the creator!
+ * ─────────────────────────
+ * 📝 Plugin     : TikTok Screenshot
+ */
+
+import axios from 'axios';
+
+let handler = async (m, { conn, text, usedPrefix, command }) => {
+    if (!text) throw `*乂 TIKTOK SCREENSHOT*\n\nMasukkan username TikTok!\nContoh: ${usedPrefix + command} olineonlyy_`;
+
+    await m.react('⏳');
+
+    try {
+        const response = await axios.get(`https://api.cmnty.web.id/tools/tiktok-screenshot?username=${encodeURIComponent(text)}`, {
+            responseType: 'arraybuffer'
+        });
+
+        let buffer = Buffer.from(response.data);
+
+        await conn.sendMessage(m.chat, { 
+            image: buffer, 
+            caption: `✨ *Screenshot TikTok: ${text}*` 
+        }, { quoted: m });
+
+        await m.react('✅');
+    } catch (e) {
+        await m.react('❌');
+        m.reply(`❌ *Error:* ${e.message}`);
+    }
+};
+
+handler.help = ['sstt <username>'];
+handler.tags = ['tools'];
+handler.command = /^sstt$/i;
+handler.limit = true;
+
+export default handler;
