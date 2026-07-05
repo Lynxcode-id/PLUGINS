@@ -1,0 +1,71 @@
+/**
+ * ───「 FEATURE AUTHOR 」───
+ * 👤 Integrator : Lynx Decode
+ * 📞 Contact  : +62 882-5804-1396
+ * 📢 Channel  : https://whatsapp.com/channel/0029VbAnuii6GcGCu73oep1i
+ * ⚠️ Note       : Keep credit to respect the creator!
+ * ─────────────────────────
+ * 📝 Plugin : YouTube MP3 Downloader
+ * 📦 Module : axios
+ * ⚡ UI BY : Erine-AI
+**/
+
+import axios from 'axios'
+
+let handler = async (m, { conn, args, usedPrefix, command }) => {
+    if (!args[0]) return m.reply(`┌˚₊ ๑│ s ʏ s ᴛ ᴇ ᴍ   ᴇ ʀ ʀ ᴏ ʀ │๑˚₊ ❌\n┇ Masukkan URL YouTube!\n│ *Contoh:* ${usedPrefix + command} https://youtu.be/dQw4w9WgXcQ\n└˚₊ ๑ ────────────── ๑˚₊\n> © ERINE-AI`)
+
+    let url = args[0]
+    let apikey = 'cuki-x'
+    let quality = '128' 
+    let apiUrl = `https://api.cuki.biz.id/api/downloader/ytmp3?apikey=${apikey}&url=${encodeURIComponent(url)}&quality=${quality}`
+
+    await m.react('⏳')
+
+    try {
+        let { data } = await axios.get(apiUrl)
+        if (!data.success) throw new Error(data.message || 'API merespon dengan kegagalan.')
+
+        let meta = data.data.metadata
+        let audio = data.data.audio
+
+        let d = meta.duration
+        let minutes = Math.floor(d / 60)
+        let seconds = d % 60
+        let formatDuration = `${minutes}:${seconds < 10 ? '0' : ''}${seconds}`
+
+        let caption = `┌˚₊ ๑│ ʏ ᴛ ᴍ ᴘ 3  ᴅ ᴏ ᴡ ɴ ʟ ᴏ ᴀ ᴅ ᴇ ʀ │๑˚₊ 🎵\n` +
+                      `┇ \n` +
+                      `│ 📌 *Judul:* ${meta.title}\n` +
+                      `│ ⏱️ *Durasi:* ${formatDuration}\n` +
+                      `│ 🎧 *Kualitas:* ${audio.label}\n` +
+                      `┇ \n` +
+                      `│ ⏳ _Sedang mengirim audio, mohon tunggu..._\n` +
+                      `└˚₊ ๑ ────────────── ๑˚₊\n` +
+                      `> © ERINE-AI`
+
+        await conn.sendMessage(m.chat, { 
+            image: { url: meta.thumbnail }, 
+            caption: caption 
+        }, { quoted: m })
+
+        await conn.sendMessage(m.chat, {
+            audio: { url: audio.download.downloadUrl },
+            mimetype: 'audio/mpeg',
+            fileName: `${meta.title}.mp3`
+        }, { quoted: m })
+
+        await m.react('✅')
+    } catch (e) {
+        await m.react('❌')
+        let errorDetail = e.response?.data?.message || e.message
+        m.reply(`┌˚₊ ๑│ s ʏ s ᴛ ᴇ ᴍ   ᴇ ʀ ʀ ᴏ ʀ │๑˚₊ ❌\n┇ Gagal mengunduh audio.\n│ *Detail:* ${errorDetail}\n└˚₊ ๑ ────────────── ๑˚₊\n> © ERINE-AI`)
+    }
+}
+
+handler.help = ['ytmp3v2 <url>']
+handler.tags = ['downloader']
+handler.command = /^ytmp3v2$/i
+handler.limit = true
+
+export default handler
