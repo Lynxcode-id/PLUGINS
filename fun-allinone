@@ -14,7 +14,7 @@ let handler = async (m, { conn, text, usedPrefix, command }) => {
 
     try {
         const cmd = command.toLowerCase();
-        const apiUrl = `https://restapi.jagoanproject.web.id/api/fun/${cmd}?name=${encodeURIComponent(name)}`;
+        const apiUrl = `https://api.jagoanproject.com/api/fun/${cmd}?name=${encodeURIComponent(name)}`;
         
         const reqHeaders = {
             headers: {
