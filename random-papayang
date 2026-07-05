@@ -1,0 +1,31 @@
+/**
+ * ───「 FEATURE AUTHOR 」───
+ * 👤 Author     : Lynx Decode
+ * 📞 Contact    : +62 882-5804-1396
+ * 📢 Channel    : https://whatsapp.com/channel/0029VbAnuii6GcGCu73oep1i
+ * ⚠️ Note       : Keep credit to respect the creator!
+ * ─────────────────────────
+ * 📝 Plugin: Papayang Random Image
+ */
+
+let handler = async (m, { conn, usedPrefix, command }) => {
+    try {
+        await m.react('⏳')
+        let api = `https://api.kyzzz.eu.cc/api/image/papayang?apikey=kyzz7847824970484`
+        
+        let txt = `┌˚₊ ๑│ PAPAYANG │๑˚₊ 🎨\n┇ \n│ ✅ *Berhasil mengambil gambar!*\n┇ \n└˚₊ ๑ ────────────── ๑˚₊\n> © ERINE-AI`
+        
+        await conn.sendFile(m.chat, api, 'papayang.jpg', txt, m)
+        await m.react('✅')
+    } catch (e) {
+        await m.react('❌')
+        return m.reply(`┌˚₊ ๑│ PAPAYANG │๑˚₊ ❌\n┇ \n│ ❌ *Terjadi kesalahan saat mengambil data.*\n┇ \n└˚₊ ๑ ────────────── ๑˚₊\n> © ERINE-AI`)
+    }
+}
+
+handler.help = ['papayang']
+handler.tags = ['random']
+handler.command = /^papayang$/i
+handler.limit = true
+
+export default handler
