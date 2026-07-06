@@ -1,0 +1,68 @@
+/**
+ * ───「 FEATURE AUTHOR 」───
+ * 👤 Integrator : Dinda [ INF TEAM ]
+ * 📞 Contact  : Rahasia bang, naksir nanti
+ * 📢 Channel  : https://whatsapp.com/channel/0029VbAnuii6GcGCu73oep1i
+ * ⚠️ Note       : Keep credit to respect the creator!
+ * ─────────────────────────
+ * 📝 Plugin : soundcloud search
+ * 📦 Module : Axios onli
+ * ⚡ UI BY : eyin eyay
+**/
+
+import axios from 'axios'
+
+let handler = async (m, { conn, text, usedPrefix, command }) => {
+    if (!text) return m.reply(`❌ Masukkan judul lagu yang ingin dicari cuy!\n\nContoh:\n*${usedPrefix + command} Everything u are*`)
+
+    await m.react('⏳')
+
+    try {
+        let apiUrl = `https://api.cuki.biz.id/api/search/soundcloud?apikey=cuki-x&query=${encodeURIComponent(text)}`
+        let response = await axios.get(apiUrl)
+        let resData = response.data
+
+        if (!resData.status || !resData.data || !resData.data.results || resData.data.results.length === 0) {
+            throw new Error('Lagu tidak ditemukan atau API sedang down.')
+        }
+
+        let data = resData.data.results[0]
+        
+        let totalSeconds = Math.floor(data.duration / 1000)
+        let minutes = Math.floor(totalSeconds / 60)
+        let seconds = totalSeconds % 60
+        let durationText = `${minutes} menit ${seconds} detik`
+
+        let txt = `┌˚₊ ๑│ s ᴏ ᴜ ɴ ᴅ ᴄ ʟ ᴏ ᴜ ᴅ │๑˚₊ 🎵\n` +
+                  `┇ \n` +
+                  `│ 📌 *Judul:* ${data.permalink ? data.permalink.replace(/-/g, ' ') : '-'}\n` +
+                  `│ 🎧 *Genre:* ${data.genre || '-'}\n` +
+                  `│ ⏱️ *Durasi:* ${durationText}\n` +
+                  `│ 👁️ *Diputar:* ${data.playback_count ? data.playback_count.toLocaleString() : '0'} kali\n` +
+                  `│ 🔗 *Link:* ${data.permalink_url || '-'}\n` +
+                  `┇ \n` +
+                  `└˚₊ ๑ ────────────── ๑˚₊\n` +
+                  `> © ERINE-AI`
+
+        let coverUrl = data.artwork_url || 'https://files.catbox.moe/nwvkbt.png'
+
+        await conn.sendMessage(m.chat, { 
+            image: { url: coverUrl }, 
+            caption: txt 
+        }, { quoted: m })
+
+        await m.react('🔥')
+
+    } catch (e) {
+        console.error(e)
+        await m.react('❌')
+        m.reply(`┌˚₊ ๑│ s ʏ s ᴛ ᴇ ᴍ   ᴇ ʀ ʀ ᴏ ʀ │๑˚₊ ❌\n┇ Gagal mencari lagu.\n│ *Detail:* ${e.message}\n└˚₊ ๑ ────────────── ๑˚₊\n> © ERINE-AI`)
+    }
+}
+
+handler.help = ['soundcloud <judul>']
+handler.tags = ['search']
+handler.command = /^(soundcloud|scsearch)$/i
+handler.limit = true
+
+export default handler
