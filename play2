@@ -1,0 +1,86 @@
+/**
+ * ───「 FEATURE AUTHOR 」───
+ * 👤 Integrator : Lynx decode [ F ]
+ * 📞 Contact  : +62 882-5804-1396
+ * 📢 Channel  : https://whatsapp.com/channel/0029VbAnuii6GcGCu73oep1i
+ * ⛓️ Ch share code : https://whatsapp.com/channel/0029VbCUDdOHFxOyVb2Hfe2X
+ * ⚠️ Note       : Keep credit to respect the creator!
+ * ─────────────────────────
+ * 📝 Plugin : play14
+ * 📦 Module : Axios
+ * ⚡ UI BY : ERINE-AI
+**/
+
+import axios from 'axios'
+
+let handler = async (m, { conn, text, usedPrefix, command }) => {
+    if (!text) return m.reply(`❌ Masukkan judul lagu yang ingin diputar cuy!\n\nContoh:\n*${usedPrefix + command} Multo Cup of Joe*`)
+
+    await m.react('⏳')
+
+    try {
+        let apiUrl = `https://api.theresav.biz.id/download/play?q=${encodeURIComponent(text)}&type=audio&bitrate=128k&apikey=x34J0`
+        let response = await axios.get(apiUrl)
+        let resData = response.data
+
+        if (!resData.status || !resData.result) {
+            throw new Error('Lagu tidak ditemukan atau API sedang down.')
+        }
+
+        let data = resData.result
+        
+        let totalSeconds = data.duration
+        let minutes = Math.floor(totalSeconds / 60)
+        let seconds = totalSeconds % 60
+        let durationText = `${minutes} menit ${seconds} detik`
+
+        let txt = `┌˚₊ ๑│ ᴘ ʟ ᴀ ʏ │๑˚₊ 🎵\n` +
+                  `┇ \n` +
+                  `│ 📌 *Judul:* ${data.title || '-'}\n` +
+                  `│ 👤 *Channel:* ${data.channel || '-'}\n` +
+                  `│ ⏱️ *Durasi:* ${durationText}\n` +
+                  `┇ \n` +
+                  `└˚₊ ๑ ────────────── ๑˚₊\n` +
+                  `> © ERINE-AI`
+
+        let coverUrl = data.thumbnail || 'https://files.catbox.moe/nwvkbt.png'
+
+        let imgMsg = await conn.sendMessage(m.chat, { 
+            image: { url: coverUrl }, 
+            caption: txt 
+        }, { quoted: m })
+
+        let audRes = await axios.get(data.download_url, { responseType: 'arraybuffer' })
+        let audioBuffer = Buffer.from(audRes.data)
+
+        await conn.sendMessage(m.chat, {
+            audio: audioBuffer,
+            mimetype: 'audio/mpeg',
+            ptt: false,
+            contextInfo: {
+                externalAdReply: {
+                    title: data.title,
+                    body: data.channel,
+                    thumbnailUrl: coverUrl,
+                    sourceUrl: data.download_url,
+                    mediaType: 1,
+                    renderLargerThumbnail: true
+                }
+            }
+        }, { quoted: imgMsg })
+
+        await m.react('🔥')
+
+    } catch (e) {
+        console.error(e)
+        await m.react('❌')
+        m.reply(`┌˚₊ ๑│ s ʏ s ᴛ ᴇ ᴍ   ᴇ ʀ ʀ ᴏ ʀ │๑˚₊ ❌\n┇ Gagal memutar lagu.\n│ *Detail:* ${e.message}\n└˚₊ ๑ ────────────── ๑˚₊\n> © ERINE-AI`)
+    }
+}
+
+handler.help = ['play2 <judul>']
+handler.tags = ['downloader']
+handler.command = /^(play2)$/i
+handler.limit = true
+
+export default handler
