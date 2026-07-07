@@ -1,0 +1,143 @@
+/**
+ * ───「 FEATURE AUTHOR 」───
+ * 👤 Developer : Lynx Decode
+ * 📞 WhatsApp  : +62 882-5804-1396
+ * 📢 Channel   : https://whatsapp.com/channel/0029VbAnuii6GcGCu73oep1i
+ * ⚠️ Note      : Keep credit to respect the creator!
+ * ─────────────────────────
+ * 📝 Plugin : towhite / putihkan - with uploader
+ * 📦 Module : Axios, Form-Data, File-Type
+ * ⚡ UI BY : ERINE-AI
+**/
+
+import fs from 'fs'
+import axios from 'axios'
+import FormData from 'form-data'
+import { fileTypeFromBuffer } from 'file-type'
+
+let handler = async (m, { conn, usedPrefix, command }) => {
+    let q = m.quoted ? m.quoted : m
+    let mime = (q.msg || q).mimetype || ''
+    
+    if (!mime.startsWith('image/')) {
+        return m.reply(`❌ Kirim atau balas sebuah gambar dengan caption *${usedPrefix + command}*`)
+    }
+
+    if (typeof global.FileType === 'undefined') {
+        global.FileType = { fromBuffer: fileTypeFromBuffer }
+    }
+
+    await m.react('⏳')
+
+    let mediaPath = ''
+    try {
+        const buffer = await q.download()
+        const { ext } = await conn.getFile(buffer)
+        const fileName = `${Date.now()}.${ext}`
+        mediaPath = `./tmp/${fileName}`
+        
+        if (!fs.existsSync('./tmp')) fs.mkdirSync('./tmp')
+        fs.writeFileSync(mediaPath, buffer)
+
+        const termaiKey = 'AIzaBj7z2z3xBjsk' 
+        const termaiDomain = 'https://c.termai.cc'
+        const fakeUserAgent = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+
+        let uploadedUrl = null
+        try {
+            const formTermai = new FormData()
+            formTermai.append('file', buffer, { filename: fileName, contentType: mime })
+            const resTermai = await axios.post(`${termaiDomain}/api/upload?key=${termaiKey}`, formTermai, { 
+                headers: { ...formTermai.getHeaders(), 'User-Agent': fakeUserAgent } 
+            })
+            if (resTermai.data?.path) {
+                uploadedUrl = resTermai.data.path
+            }
+        } catch (e) {
+            console.log('Termai Error:', e?.message)
+        }
+
+        if (!uploadedUrl) {
+            throw new Error('Uploader Termai gagal mengupload media.')
+        }
+
+        let promptTarget = "buat kulit dan muka karakter/seseorang di foto ini menjadi putih seputih putihnya, intinya sangat sangat putih cuy buat yang rapih jangan sampai mengubah muka bentuk tubuh dan fotonya!!"
+        let apiUrl = `https://api-faa.my.id/faa/nano-banana?url=${encodeURIComponent(uploadedUrl)}&prompt=${encodeURIComponent(promptTarget)}`
+        
+        let response = await axios.get(apiUrl, { responseType: 'arraybuffer' })
+        let imageResult = Buffer.from(response.data)
+
+        try {
+            let jsonCheck = JSON.parse(imageResult.toString('utf-8'))
+            if (jsonCheck.status && jsonCheck.result) {
+                imageResult = { url: jsonCheck.result }
+            } else if (jsonCheck.url) {
+                imageResult = { url: jsonCheck.url }
+            }
+        } catch (err) {
+        }
+
+        let txt = `┌˚₊ ๑│ ɪ ᴍ ᴀ ɢ ᴇ   ᴇ ᴅ ɪ ᴛ │๑˚₊ 🪄\n` +
+                  `┇ \n` +
+                  `│ ✨ *Status:* Berhasil!\n` +
+                  `│ 🎨 *Prompt:* ${promptTarget}\n` +
+                  `┇ \n` +
+                  `└˚₊ ๑ ────────────── ๑˚₊\n` +
+                  `> © ERINE-AI`
+
+        let wm = global.wm || "Erine System"
+        let senderNumber = m.sender.split('@')[0]
+        let fkontak = {
+            key: {
+                fromMe: false,
+                participant: `0@s.whatsapp.net`
+            },
+            message: {
+                contactMessage: {
+                    displayName: wm,
+                    vcard: `BEGIN:VCARD\nVERSION:3.0\nN:XL;${wm},;;;\nFN:${wm}\nitem1.TEL;waid=${senderNumber}:${senderNumber}\nitem1.X-ABLabel:Ponsel\nEND:VCARD`
+                }
+            }
+        }
+
+        await conn.sendMessage(m.chat, { 
+            image: imageResult, 
+            caption: txt,
+            contextInfo: {
+                forwardingScore: 999,
+                isForwarded: true,
+                forwardedNewsletterMessageInfo: {
+                    newsletterName: `「 🐣 ᴇʀɪɴᴇ-ᴍᴅ ɪɴғᴏʀᴍᴀᴛɪᴏɴ 🐣 」`,
+                    newsletterJid: "120363400612665352@newsletter"
+                }
+            }
+        }, { quoted: fkontak })
+
+        await m.react('🔥')
+
+    } catch (e) {
+        console.error(e)
+        await m.react('❌')
+        
+        let errorMsg = e.message
+        if (e.response && e.response.data) {
+            try {
+                let jsonErr = JSON.parse(e.response.data.toString('utf-8'))
+                errorMsg = jsonErr.error || jsonErr.message || e.message
+            } catch (err) {
+                errorMsg = e.response.data.toString('utf-8')
+            }
+        }
+        
+        m.reply(`┌˚₊ ๑│ s ʏ s ᴛ ᴇ ᴍ   ᴇ ʀ ʀ ᴏ ʀ │๑˚₊ ❌\n┇ Gagal memproses gambar.\n│ *Detail:* ${errorMsg}\n└˚₊ ๑ ────────────── ๑˚₊\n> © ERINE-AI`)
+    } finally {
+        if (mediaPath && fs.existsSync(mediaPath)) fs.unlinkSync(mediaPath)
+    }
+}
+
+handler.help = ['towhite', 'putihkan']
+handler.tags = ['ai', 'tools']
+handler.command = /^towhite|putihkan$/i
+handler.limit = true
+
+export default handler
