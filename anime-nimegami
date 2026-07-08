@@ -1,0 +1,243 @@
+/**
+ * ───「 FEATURE AUTHOR 」───
+ * 👤 Developer : Lynx Decode
+ * 📞 WhatsApp  : +62 882-5804-1396
+ * 📢 Channel   : https://whatsapp.com/channel/0029VbAnuii6GcGCu73oep1i
+ * ⚠️ Note      : Keep credit to respect the creator!
+ * ─────────────────────────
+ * 📝 Plugin : Nimegami Search & Detail
+ * 🔍 Scraper By : JH a.k.a Dhika - Fiony Bot
+ * ⚡ UI BY : ERINE-AI
+**/
+
+import axios from 'axios'
+import * as cheerio from 'cheerio'
+
+async function JHNimegami(mode, input) {
+  const baseRes = {
+    author_skrep: 'JH a.k.a Dhika',
+    kesayangan: 'Fiony Alveria'
+  }
+
+  const baseUrl = 'https://nimegami.id'
+
+  const jantung = {
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/127.0.0.0 Safari/537.36',
+    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
+    'Accept-Language': 'id-ID,id;q=0.9,en-US;q=0.8,en;q=0.7',
+    'Referer': baseUrl + '/'
+  }
+
+  const getUrl = (val) => {
+    if (val.startsWith('http')) return val
+    let path = val.replace(/^\/+|\/+$/g, '')
+    return `${baseUrl}/${path}/`
+  }
+
+  try {
+    let data = {}
+
+    if (mode === 'search') {
+      const searchUrl = `${baseUrl}/?s=${encodeURIComponent(input)}&post_type=post`
+      const { data: html } = await axios.get(searchUrl, { headers: jantung, timeout: 15000 })
+      const $ = cheerio.load(html)
+
+      const results = []
+
+      $('.archive-a article').each((_, el) => {
+        const a = $(el).find('h2 a, h3 a').first()
+        let url = a.attr('href')
+        let title = a.text().trim() || $(el).find('h2, h3').text().trim()
+
+        if (!url) {
+          const fallbackA = $(el).find('a').first()
+          url = fallbackA.attr('href')
+          if (!title) title = fallbackA.attr('title') || fallbackA.text().trim()
+        }
+
+        const img = $(el).find('.thumbnail img')
+        let image = img.attr('src') || img.attr('data-src') || null
+
+        let metaArr = []
+        $(el).find('.rating-archive, .eps-archive, .term_tag-a a, .terms_tag a').each((_, m) => {
+          const text = $(m).text().replace(/\s+/g, ' ').trim()
+          if (text) metaArr.push(text)
+        })
+
+        let meta = [...new Set(metaArr)].join(' | ')
+
+        if (title && url) {
+          results.push({ title, url, image, meta })
+        }
+      })
+
+      data = { mode, query: input, total: results.length, results }
+    } 
+    else if (mode === 'detail' || mode === 'download') {
+      const target = getUrl(input)
+      const { data: html } = await axios.get(target, { headers: jantung, timeout: 15000 })
+      const $ = cheerio.load(html)
+
+      const title = $('h1.title').text().trim()
+      const image = $('.thumbnail img').attr('src') || $('meta[property="og:image"]').attr('content') || null
+      const synopsis = $('#Sinopsis').text().replace(/Sinopsis/i, '').replace(/\s+/g, ' ').trim()
+
+      const info = {}
+      const genres = []
+      let score = null
+
+      $('.info2 table tr').each((_, el) => {
+        const key = $(el).find('td.tablex').text().replace(':', '').trim().toLowerCase().replace(/\s+/g, '_')
+        const val = $(el).find('td').eq(1).text().trim()
+
+        if (key === 'kategori') {
+          $(el).find('td.info_a a').each((_, a) => genres.push($(a).text().trim()))
+        } else if (key === 'rating') {
+          score = $(el).find('td.ratingx').text().split('[')[0].trim()
+          info[key] = score
+        } else if (key && val) {
+          info[key] = val
+        }
+      })
+
+      const streams = []
+      $('.list_eps_stream li').each((_, el) => {
+        const epTitle = $(el).attr('title') || $(el).text().trim()
+        const rawData = $(el).attr('data')
+        let streamLinks = []
+
+        if (rawData) {
+          try {
+            const decoded = Buffer.from(rawData, 'base64').toString('utf-8')
+            const parsed = JSON.parse(decoded)
+            parsed.forEach(p => {
+               if(p.format && p.url && p.url.length > 0) {
+                  streamLinks.push({ quality: p.format, url: p.url[0] })
+               }
+            })
+          } catch (e) {}
+        }
+        if (epTitle) {
+          streams.push({ title: epTitle, links: streamLinks })
+        }
+      })
+
+      const downloads = []
+      $('.download h4').each((_, el) => {
+        const epTitle = $(el).text().trim()
+        const links = []
+        $(el).next('ul').find('li').each((_, li) => {
+          const quality = $(li).find('strong').text().trim()
+          $(li).find('a').each((_, a) => {
+            links.push({
+              quality,
+              server: $(a).text().trim(),
+              url: $(a).attr('href')
+            })
+          })
+        })
+        if (links.length > 0) downloads.push({ episode: epTitle, links })
+      })
+
+      data = {
+        mode,
+        target,
+        title,
+        image,
+        score,
+        genres,
+        info,
+        synopsis,
+        totalStreams: streams.length,
+        streams,
+        totalDownloads: downloads.length,
+        downloads
+      }
+    } 
+    else {
+      throw new Error('Mode tidak dikenal')
+    }
+
+    return { ...baseRes, status: true, ...data }
+  } catch (error) {
+    let errDetail = error.message
+    if (error.response?.status === 404) errDetail = 'Target tidak ditemukan (404)'
+    if (error.response?.status === 403 || error.response?.status === 503) {
+      errDetail = 'Koneksi ditolak server / Cloudflare'
+    }
+    return {
+      ...baseRes,
+      status: false,
+      mode,
+      error: errDetail
+    }
+  }
+}
+
+let handler = async (m, { conn, text, usedPrefix, command }) => {
+    if (!text) return m.reply(`❌ Masukkan query pencarian atau URL detail!\n\n*Contoh Pencarian:*\n${usedPrefix + command} Solo Leveling\n\n*Contoh Detail:*\n${usedPrefix + command} https://nimegami.id/solo-leveling/`)
+
+    await m.react('⏳')
+
+    try {
+        let isUrl = text.startsWith('http://') || text.startsWith('https://')
+        let res = isUrl ? await JHNimegami('detail', text) : await JHNimegami('search', text)
+
+        if (!res.status) throw new Error(res.error)
+
+        if (res.mode === 'search') {
+            if (res.total === 0) return m.reply(`❌ Anime *"${text}"* tidak ditemukan.`)
+            
+            let txt = `┌˚₊ ๑│ ɴ ɪ ᴍ ᴇ ɢ ᴀ ᴍ ɪ   s ᴇ ᴀ ʀ ᴄ ʜ │๑˚₊ 🔍\n┇ \n`
+            res.results.forEach((anime, i) => {
+                txt += `│ *${i + 1}.* ${anime.title}\n`
+                txt += `│ ℹ️ *Meta:* ${anime.meta || '-'}\n`
+                txt += `│ 🔗 *Link:* ${anime.url}\n│ \n`
+            })
+            txt += `┇ \n└˚₊ ๑ ────────────── ๑˚₊\n> Scraper by : ${res.author_skrep}\n> © ERINE-AI`
+
+            await m.reply(txt)
+        } 
+        else if (res.mode === 'detail') {
+            let txt = `┌˚₊ ๑│ ɴ ɪ ᴍ ᴇ ɢ ᴀ ᴍ ɪ   ᴅ ᴇ ᴛ ᴀ ɪ ʟ │๑˚₊ 🎬\n┇ \n` +
+                      `│ 📝 *Judul:* ${res.title}\n` +
+                      `│ ⭐ *Rating:* ${res.score || '-'}\n` +
+                      `│ 🏷️ *Genre:* ${res.genres.join(', ') || '-'}\n` +
+                      `│ \n` +
+                      `│ 📖 *Sinopsis:* ${res.synopsis || '-'}\n` +
+                      `│ \n`
+            
+            if (res.downloads.length > 0) {
+                txt += `│ 📥 *Link Download:*\n`
+                res.downloads.forEach(dl => {
+                    txt += `│  • *${dl.episode}*\n`
+                    dl.links.forEach(l => {
+                        txt += `│    - [${l.quality}] ${l.server}: ${l.url}\n`
+                    })
+                })
+            }
+
+            txt += `┇ \n└˚₊ ๑ ────────────── ๑˚₊\n> Scraper by : ${res.author_skrep}\n> © ERINE-AI`
+
+            if (res.image) {
+                await conn.sendMessage(m.chat, { image: { url: res.image }, caption: txt }, { quoted: m })
+            } else {
+                await m.reply(txt)
+            }
+        }
+
+        await m.react('✅')
+
+    } catch (e) {
+        console.error(e)
+        await m.react('❌')
+        m.reply(`┌˚₊ ๑│ s ʏ s ᴛ ᴇ ᴍ   ᴇ ʀ ʀ ᴏ ʀ │๑˚₊ ❌\n┇ Gagal memproses data.\n│ *Detail:* ${e.message}\n└˚₊ ๑ ────────────── ๑˚₊\n> © ERINE-AI`)
+    }
+}
+
+handler.help = ['nimegami <query/url>']
+handler.tags = ['anime', 'search']
+handler.command = /^(nimegami|animegami)$/i
+handler.limit = true
+
+export default handler
