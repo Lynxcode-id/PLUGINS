@@ -1,0 +1,128 @@
+/**
+ * ───「 FEATURE AUTHOR 」───
+ * 👤 Developer : Lynx Decode
+ * 📞 WhatsApp  : +62 882-5804-1396
+ * 📢 Channel   : https://whatsapp.com/channel/0029VbAnuii6GcGCu73oep1i
+ * ⚠️ Note      : Keep credit to respect the creator!
+ * ─────────────────────────
+ * 📝 Plugin : Gofile.io Uploader
+ * 🔍 Scraper By : +62 895-3722-11983
+ * ⚡ UI BY : ERINE-AI
+**/
+
+import axios from 'axios'
+import FormData from 'form-data'
+import { fileTypeFromBuffer } from 'file-type'
+
+const ACCOUNTS_URL = "https://api.gofile.io/accounts"
+const UPLOAD_URL = "https://upload.gofile.io/uploadfile"
+
+const BASE_HEADERS = {
+    "User-Agent": "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/127.0.0.0 Safari/537.36",
+    "Accept": "*/*",
+    "Accept-Language": "id-ID",
+    "Origin": "https://gofile.io",
+    "Referer": "https://gofile.io/",
+}
+
+async function createGuestAccount() {
+    const { data } = await axios.post(ACCOUNTS_URL, {}, { headers: BASE_HEADERS })
+    if (data.status !== "ok" || !data.data?.token) {
+        throw new Error("Gagal generate token guest: " + JSON.stringify(data))
+    }
+    return { token: data.data.token, rootFolder: data.data.rootFolder }
+}
+
+async function uploadFile(fileInput, fileName = null) {
+    try {
+        const { token, rootFolder } = await createGuestAccount()
+
+        const form = new FormData()
+        form.append("token", token)
+        form.append("folderId", rootFolder)
+
+        if (Buffer.isBuffer(fileInput)) {
+            if (!fileName) throw new Error("fileName wajib disertakan jika menggunakan Buffer")
+            form.append("file", fileInput, { filename: fileName })
+        } else {
+            throw new Error("Input tidak valid: harus Buffer")
+        }
+
+        const { data } = await axios.post(UPLOAD_URL, form, {
+            headers: { ...form.getHeaders(), ...BASE_HEADERS, Authorization: "Bearer " + token },
+            maxBodyLength: Infinity,
+            maxContentLength: Infinity,
+        })
+
+        if (data.status !== "ok") {
+            throw new Error("Upload gagal dari server: " + JSON.stringify(data))
+        }
+
+        return {
+            success: true,
+            message: "Upload berhasil",
+            token,
+            downloadPage: data.data.downloadPage,
+            fileId: data.data.id,
+            name: data.data.name,
+            md5: data.data.md5,
+            size: data.data.size,
+            data: data.data,
+        }
+    } catch (error) {
+        return {
+            success: false,
+            message: error.response?.data?.error || error.response?.data?.status || error.message || "Terjadi kesalahan saat upload",
+        }
+    }
+}
+
+let handler = async (m, { conn, usedPrefix, command }) => {
+    let q = m.quoted ? m.quoted : m
+    let mime = (q.msg || q).mimetype || ''
+    
+    if (!mime) {
+        return m.reply(`❌ Kirim atau balas media (foto/video/dokumen) dengan caption *${usedPrefix + command}*`)
+    }
+
+    await m.react('⏳')
+
+    try {
+        let buffer = await q.download()
+        let type = await fileTypeFromBuffer(buffer)
+        let ext = type ? type.ext : 'bin'
+        let fileName = `${Date.now()}.${ext}`
+
+        let res = await uploadFile(buffer, fileName)
+
+        if (!res.success) throw new Error(res.message)
+
+        let fileSizeMB = (res.size / (1024 * 1024)).toFixed(2)
+
+        let txt = `┌˚₊ ๑│ ɢ ᴏ ғ ɪ ʟ ᴇ   ᴜ ᴘ ʟ ᴏ ᴀ ᴅ ᴇ ʀ │๑˚₊ ☁️\n` +
+                  `┇ \n` +
+                  `│ ✨ *Status:* Berhasil!\n` +
+                  `│ 📄 *Nama File:* ${res.name}\n` +
+                  `│ 📊 *Ukuran:* ${fileSizeMB} MB\n` +
+                  `│ 🔗 *Link:* ${res.downloadPage}\n` +
+                  `┇ \n` +
+                  `└˚₊ ๑ ────────────── ๑˚₊\n` +
+                  `> Scraper by : +62 895-3722-11983\n` +
+                  `> © ERINE-AI`
+
+        await m.reply(txt)
+        await m.react('✅')
+
+    } catch (e) {
+        console.error(e)
+        await m.react('❌')
+        m.reply(`┌˚₊ ๑│ s ʏ s ᴛ ᴇ ᴍ   ᴇ ʀ ʀ ᴏ ʀ │๑˚₊ ❌\n┇ Gagal mengupload media.\n│ *Detail:* ${e.message}\n└˚₊ ๑ ────────────── ๑˚₊\n> © ERINE-AI`)
+    }
+}
+
+handler.help = ['gofile', 'tourl']
+handler.tags = ['tools']
+handler.command = /^(gofile2|tourl)$/i
+handler.limit = true
+
+export default handler
