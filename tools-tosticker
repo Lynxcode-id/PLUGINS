@@ -1,0 +1,43 @@
+/**
+ * ───「 FEATURE AUTHOR 」───
+ * 👤 Integrator : Lynx decode [ F ]
+ * 📞 Contact  : +62 882-5804-1396
+ * 📢 Channel  : https://whatsapp.com/channel/0029VbAnuii6GcGCu73oep1i
+ * ⚠️ Note      : Keep credit to respect the creators!
+ * ─────────────────────────
+ * 📝 Plugin : Sticker Maker (Starseal)
+ * 📦 Module : @itsliaaa/starseal - npm i @itsliaaa/starseal@latest
+ * ⚡ UI BY : ERINE-AI
+**/
+
+import { createSticker } from '@itsliaaa/starseal'
+
+let handler = async (m, { conn, text, usedPrefix, command }) => {
+    let q = m.quoted ? m.quoted : m
+    let mime = (q.msg || q).mimetype || ''
+
+    if (!/image|video/.test(mime)) throw `Kirim/balas gambar atau video dengan perintah ${usedPrefix + command}`
+    
+    await m.react('⏳')
+    try {
+        let media = await q.download()
+        let [packname, author] = text.split('|')
+        
+        let stickerBuffer = await createSticker(media)
+            .setPackName(packname ? packname.trim() : 'ERINE-AI')
+            .setPublisherName(author ? author.trim() : 'Lynx decode')
+            .toBuffer()
+        
+        await conn.sendMessage(m.chat, { sticker: stickerBuffer }, { quoted: m })
+        await m.react('✅')
+    } catch (e) {
+        await m.react('❌')
+        m.reply('❌ Error: ' + (e.message || e))
+    }
+}
+
+handler.help = ['sticker', 's', 'stiker']
+handler.tags = ['tools']
+handler.command = /^(s|sticker|stiker)$/i
+
+export default handler
