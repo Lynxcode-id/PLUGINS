@@ -1,0 +1,123 @@
+/**
+ * ───「 OTP NUMBER REAL API (FINAL PRO) 」───
+ * 📝 All-in-One: Services, Country, Request, Auto-OTP + Manual Re-check
+ */
+
+import { Button } from '../lib/nixcode.js';
+import axios from 'axios';
+
+const API_KEY = 'np_live_FpKKXI_49mgSQiU8bICzt2gPsiRJyhSL8Pz5S8HoL5o';
+const BASE_URL = 'https://numberpanel.tech/api';
+const HEADERS = { 'Authorization': `Bearer ${API_KEY}` };
+
+let handler = async (m, { conn, args, usedPrefix, command }) => {
+    let action = command.toLowerCase();
+    
+    try {
+        // 1. MENU UTAMA
+        if (action === 'np') {
+            return await new Button(conn)
+                .setTitle('🚀 OTP PANEL')
+                .setBody('Panel OTP Realtime. Pilih menu:')
+                .addSelection('🎮 Pilih Aksi')
+                .makeSection('Menu Utama')
+                .makeRow('💬 Gacha OTP', 'Gacha', 'Lihat daftar layanan', `${usedPrefix}npservices`)
+                .makeRow('📱 Nomor Aktif', 'List', 'Daftar nomor Anda', `${usedPrefix}nplist`)
+                .send(m.chat, { quoted: m });
+        }
+
+        // 2. DAFTAR SERVICES
+        if (action === 'npservices') {
+            let res = await axios.get(`${BASE_URL}/services`, { headers: HEADERS });
+            let btn = new Button(conn)
+                .setTitle('📋 DAFTAR LAYANAN')
+                .setBody('Pilih layanan untuk melihat negara:')
+                .addSelection('📂 Pilih Layanan')
+                .makeSection('Daftar Service');
+            
+            res.data.services.forEach(s => {
+                btn.makeRow(s.name, s.key, `Cek stok ${s.name}`, `${usedPrefix}npcountry ${s.key}`);
+            });
+            return await btn.send(m.chat);
+        }
+
+        // 3. DAFTAR NEGARA
+        if (action === 'npcountry') {
+            if (!args[0]) return m.reply('Pilih layanan.');
+            let res = await axios.get(`${BASE_URL}/countries?service=${args[0]}`, { headers: HEADERS });
+            let btn = new Button(conn)
+                .setTitle(`🌍 NEGARA ${args[0].toUpperCase()}`)
+                .setBody('Pilih negara untuk ambil nomor:')
+                .addSelection('🗺️ Pilih Negara')
+                .makeSection('Daftar Negara');
+            
+            res.data.countries.forEach(c => {
+                btn.makeRow(`${c.name} (${c.count})`, `${args[0]} ${c.name}`, `Ambil ${c.name}`, `${usedPrefix}nprequest ${args[0]} ${c.name}`);
+            });
+            return await btn.send(m.chat);
+        }
+
+        // 4. REQUEST NUMBER & AUTO OTP
+        if (action === 'nprequest') {
+            if (!args[0] || !args[1]) return m.reply('Pilih layanan dan negara.');
+            let res = await axios.post(`${BASE_URL}/request_number`, { service: args[0], country: args[1] }, { headers: HEADERS });
+            let nomor = res.data.number;
+            
+            await m.reply(`✅ *Sukses!*\nNomor: ${nomor}\n\n🔎 *Mencari OTP otomatis (60 detik)...*`);
+
+            let counter = 0;
+            let interval = setInterval(async () => {
+                counter++;
+                try {
+                    let otpRes = await axios.get(`${BASE_URL}/latest_otp?number=${nomor}`, { headers: HEADERS });
+                    
+                    if (otpRes.data.has_otp === true) {
+                        clearInterval(interval);
+                        let btn = new Button(conn)
+                            .setTitle('✅ OTP DITEMUKAN')
+                            .setBody(`Nomor: ${nomor}\n\n*Isi OTP:*\n${otpRes.data.otp || otpRes.data.sms}`)
+                            .addSelection('🎮 Aksi')
+                            .makeSection('Status OTP')
+                            .makeRow('📋 Copy OTP', 'Copy', 'Salin OTP', `${usedPrefix}npotp ${nomor}`)
+                            .makeRow('🏠 Menu Utama', 'Menu', 'Kembali', `${usedPrefix}np`);
+                        return await btn.send(m.chat);
+                    }
+                    
+                    if (counter >= 6) {
+                        clearInterval(interval);
+                        let btn = new Button(conn)
+                            .setTitle('⏳ WAKTU HABIS')
+                            .setBody(`Nomor: ${nomor}\nOTP belum masuk. Klik tombol di bawah untuk cek manual terus menerus.`)
+                            .addSelection('🎮 Aksi')
+                            .makeSection('Status OTP')
+                            .makeRow('🔄 Cek Lagi', 'Cek', 'Cek OTP manual', `${usedPrefix}npotp ${nomor}`)
+                            .makeRow('🏠 Menu Utama', 'Menu', 'Kembali', `${usedPrefix}np`);
+                        return await btn.send(m.chat);
+                    }
+                } catch (e) {
+                    clearInterval(interval);
+                }
+            }, 10000); 
+            return;
+        }
+
+        // 5. LIST & OTP MANUAL
+        if (action === 'nplist') {
+            let res = await axios.get(`${BASE_URL}/my_numbers`, { headers: HEADERS });
+            let list = res.data.numbers.map(n => n.number).join('\n') || 'Kosong';
+            return m.reply(`📱 *Nomor Aktif:*\n${list}`);
+        }
+
+        if (action === 'npotp') {
+            if (!args[0]) return m.reply('Masukkan nomor.');
+            let res = await axios.get(`${BASE_URL}/latest_otp?number=${args[0]}`, { headers: HEADERS });
+            return m.reply(res.data.has_otp ? `✅ OTP: ${res.data.otp || res.data.sms}` : '⏳ OTP belum ada. Tekan tombol Cek Lagi jika perlu.');
+        }
+
+    } catch (e) {
+        m.reply('❌ Error: ' + (e.response?.data?.error || e.message));
+    }
+}
+
+handler.command = /^(np|npservices|npcountry|nprequest|nplist|npotp)$/i;
+export default handler;
