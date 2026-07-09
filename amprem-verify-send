@@ -1,0 +1,87 @@
+import axios from 'axios';
+
+const BASE_URL = 'https://am-prem.vxz.my.id';
+const API_KEY = 'dkf_8b2b6a59';
+
+// 1. Definisikan fungsi utamanya dengan parameter hancuran
+async function handler(m, { args }) {
+    const listArgs = args || [];
+
+    const helpMessage = `💡 *Cara Penggunaan AM Premium* 💡\n\n` +
+                        `1️⃣ *Kirim Email:*\n` +
+                        `   *.amprem send <email>*\n` +
+                        `   _Contoh:_ .amprem send user@gmail.com\n\n` +
+                        `2️⃣ *Verifikasi Email:*\n` +
+                        `   *.amprem verify <email> <link>*\n` +
+                        `   _Contoh:_ .amprem verify user@gmail.com https://link.com`;
+
+    const subCommand = listArgs[0]?.toLowerCase();
+
+    if (!subCommand || !['send', 'verify'].includes(subCommand)) {
+        return m.reply(helpMessage);
+    }
+
+    // --- FITUR 1: SEND EMAIL ---
+    if (subCommand === 'send') {
+        const email = listArgs[1];
+        if (!email) return m.reply('❌ Tolong masukkan email target!\nContoh: *.amprem send user@gmail.com*');
+        
+        await m.reply('⏳ Sedang memproses pengiriman email...');
+        
+        try {
+            const response = await axios.get(`${BASE_URL}/api/send`, {
+                params: { email, apikey: API_KEY }
+            });
+
+            if (response.data) {
+                m.reply(`✅ *Berhasil!*\n\nEmail telah dikirim ke: *${email}*`);
+            } else {
+                m.reply('❌ Gagal mengirim email. Silahkan coba lagi nanti.');
+            }
+        } catch (error) {
+            console.error(error);
+            m.reply(`❌ *Terjadi Kesalahan!*\nError: ${error.message}`);
+        }
+    }
+
+    // --- FITUR 2: VERIFY EMAIL ---
+    if (subCommand === 'verify') {
+        const email = listArgs[1];
+        const link = listArgs[2];
+
+        if (!email || !link) {
+            return m.reply('❌ Format salah!\nContoh: *.amprem verify user@gmail.com <link_verifikasi>*');
+        }
+
+        await m.reply('⏳ Sedang memverifikasi link...');
+
+        try {
+            const response = await axios.get(`${BASE_URL}/api/verify`, {
+                params: {
+                    email: email,
+                    link: link,
+                    apply: 'true',
+                    apikey: API_KEY
+                }
+            });
+
+            if (response.data) {
+                m.reply(`✅ *Verifikasi Sukses!*\n\n📧 *Email:* ${email}\n🔗 *Status:* Berhasil di-apply.`);
+            } else {
+                m.reply('❌ Gagal memverifikasi. Pastikan link atau email benar.');
+            }
+        } catch (error) {
+            console.error(error);
+            m.reply(`❌ *Terjadi Kesalahan!*\nError: ${error.message}`);
+        }
+    }
+}
+
+// 2. Tempelkan configurasi LANGSUNG ke properti fungsi handler agar terbaca loader
+handler.command = ['amprem'];
+handler.tags = ['tools'];
+handler.help = ['amprem send <email>', 'amprem verify <email> <link>'];
+handler.description = 'Fitur Send & Verify Email AM Premium';
+
+// 3. Export sebagai default
+export default handler;
