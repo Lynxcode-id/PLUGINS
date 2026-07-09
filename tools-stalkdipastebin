@@ -1,0 +1,79 @@
+/**
+ * 🕵️‍♂️ DiPastebin Profile Stalker V2
+ * Final Version: Direct URL Method (Tanpa Buffer)
+ */
+
+import axios from 'axios';
+
+let handler = async (m, { conn, args, usedPrefix, command }) => {
+    let username = args[0];
+    if (!username) return m.reply(`Contoh: ${usedPrefix}${command} dezzify`);
+
+    await m.react('🔍');
+    
+    try {
+        const { data } = await axios.get(`https://dipastebin.web.id/api/users/${username}`);
+
+        // Status Verifikasi
+        const badge = data.verifiedCustomName ? ` (${data.verifiedCustomName})` : '';
+        const isVerified = data.verified ? `✔ Verified${badge}` : 'Unverified';
+        
+        // Daftar Badge
+        const badges = (data.unlockedBadges && data.unlockedBadges.length > 0) 
+            ? data.unlockedBadges.map(b => b.name).join(', ') 
+            : 'Tidak ada';
+
+        let caption = `*🕵️‍♂️ PASTEBIN USER INFO*\n\n`;
+        caption += `👤 *Nickname:* ${data.name || '-'}\n`;
+        caption += `🏷️ *Username:* @${data.username}\n`;
+        caption += `✨ *Status:* ${isVerified}\n`;
+        caption += `📖 *Bio:* ${data.bio || '-'}\n`;
+        caption += `🌐 *Website:* ${data.websiteUrl || '-'}\n`;
+        caption += `🎖️ *Badges:* ${badges}\n\n`;
+        
+        caption += `📊 *STATISTIK:*\n`;
+        caption += `👥 Followers: ${data.followersCount}\n`;
+        caption += `👣 Following: ${data.followingCount}\n`;
+
+        if (data.followers?.length > 0) {
+            caption += `\n🔽 *Followers (Top 3):*\n`;
+            data.followers.slice(0, 3).forEach(f => caption += `• ${f.name} (@${f.username})\n`);
+        }
+
+        if (data.following?.length > 0) {
+            caption += `\n🔼 *Following (Top 3):*\n`;
+            data.following.slice(0, 3).forEach(f => caption += `• ${f.name} (@${f.username})\n`);
+        }
+
+        // --- FINAL ATTEMPT: DIRECT URL (Bypass Buffer) ---
+        // Kita gunakan cara standar WhatsApp untuk memuat gambar
+        try {
+            if (data.picture && data.picture.startsWith('http')) {
+                await conn.sendMessage(m.chat, { 
+                    image: { url: data.picture }, 
+                    caption: caption 
+                }, { quoted: m });
+            } else {
+                await m.reply(caption);
+            }
+        } catch (e) {
+            // Jika direct url gagal, kirim teks saja agar bot tetap jalan
+            await m.reply(caption);
+        }
+
+        await m.react('✅');
+    } catch (e) {
+        if (e.response?.status === 404) {
+            m.reply(`❌ User @${username} tidak ditemukan.`);
+        } else {
+            m.reply(`❌ Gagal menarik data: ${e.message}`);
+        }
+        await m.react('❌');
+    }
+}
+
+handler.help = ['pbinfo', 'pstalk'];
+handler.tags = ['tools'];
+handler.command = /^(pbinfo|pstalk|cekpb)$/i;
+
+export default handler;
