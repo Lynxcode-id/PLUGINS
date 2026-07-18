@@ -1,61 +1,55 @@
-/**
- * ───「 FEATURE AUTHOR 」───
- * 👤 Author     : Lynx decode
- * 📞 Contact    : +62 882-5804-1396
- * 📢 Channel    : https://whatsapp.com/channel/0029VbAnuii6GcGCu73oep1i
- * ⚠️ Note       : Keep credit to respect the creator!
- * ─────────────────────────
- * 📝 Plugin     : To Anime (Universal Check)
- */
+import axios from 'axios';
+import FormData from 'form-data';
 
-import fetch from 'node-fetch';
-import { FormData, Blob } from 'formdata-node';
-
-let handler = async (m, { conn }) => {
+let handler = async (m, { conn, usedPrefix, command }) => {
     let q = m.quoted ? m.quoted : m;
     let mime = (q.msg || q).mimetype || '';
-    
-    if (!mime || !mime.includes('image')) return m.reply('Reply foto yang ingin diubah menjadi anime!');
+
+    if (!/image/.test(mime)) {
+        return m.reply(`╭── ⋆ ✧ ꒰ 🎀 *INFO* 🎀 ꒱ ✧ ⋆ ──\n┊ 🌸 Kirim atau balas gambar dengan caption!\n┊ ☁️ Contoh: *${usedPrefix + command}*\n╰────────────────────── ⋆ ✧`);
+    }
 
     await m.react('⏳');
 
     try {
         let media = await q.download();
+        
         let formData = new FormData();
-        formData.append('file', new Blob([media], { type: mime }), 'upload_file');
+        formData.append('image', media, 'image.jpg');
 
-        let res = await fetch('https://api.shinzu.web.id/api/upload/litterbox', {
-            method: 'POST',
-            body: formData
+        const response = await axios.post("https://api.xrizal.my.id/api/image/to-anime", formData, {
+            headers: {
+                ...formData.getHeaders(),
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36'
+            }
         });
-        let json = await res.json();
-        if (!json.status || !json.result) throw new Error('Gagal upload media.');
-        
-        let ppurl = json.result.url;
-        let apiUrl = `https://api.cuki.biz.id/api/nanobanana/toanime?apikey=cuki-x&url=${encodeURIComponent(ppurl)}`;
-        
-        let response = await fetch(apiUrl);
-        let contentType = response.headers.get('content-type');
 
-        if (contentType && contentType.includes('application/json')) {
-            let data = await response.json();
-            if (!data.status && data.result) throw new Error(data.message || "Gagal convert.");
-            await conn.sendMessage(m.chat, { image: { url: data.result }, caption: "✨ *ANIME STYLE GENERATED*" }, { quoted: m });
-        } else {
-            let buffer = Buffer.from(await response.arrayBuffer());
-            await conn.sendMessage(m.chat, { image: buffer, caption: "✨ *ANIME STYLE GENERATED*" }, { quoted: m });
+        const data = response.data;
+        if (!data.status || !data.result || !data.result.success) {
+            throw new Error("Gagal mengonversi gambar ke anime.");
         }
 
+        const resultUrl = data.result.result;
+
+        let caption = `╭── ⋆ ✧ ꒰ 🎀 *TO ANIME MAKER* 🎀 ꒱ ✧ ⋆ ──\n`;
+        caption += `╰────────────────────── ⋆ ✧\n> 🌸 *Li Shiya MD - Maker Tools* 🌸`;
+
+        await conn.sendMessage(m.chat, { 
+            image: { url: resultUrl }, 
+            caption: caption 
+        }, { quoted: m });
+
         await m.react('✅');
-    } catch (e) {
+    } catch (err) {
+        console.error(err);
         await m.react('❌');
-        m.reply(`❌ Gagal: ${e.message}`);
+        m.reply(`╭── ⋆ ✧ ꒰ 🎀 *ERROR* 🎀 ꒱ ✧ ⋆ ──\n┊ ⚠️ Gagal memproses gambar.\n┊ _${err.message}_\n╰────────────────────── ⋆ ✧`);
     }
 };
 
-handler.help = ['toanime'];
-handler.tags = ['ai'];
-handler.command = /^toanime$/i;
+handler.help = ['toanime2'];
+handler.tags = ['maker'];
+handler.command = /^toanime2$/i;
 handler.limit = true;
 
 export default handler;
