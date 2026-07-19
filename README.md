@@ -30,6 +30,7 @@ Plugin di dalam repo ini sangat direkomendasikan dan diuji coba langsung pada si
 * **Trisha-MD**
 * **Takina-Project**
 * **Jemima-AI**
+* **Li Shiya ESM**
 
 ---
 
