@@ -1,0 +1,39 @@
+/**
+ * ───「 FEATURE AUTHOR 」───
+ * 👤 Author     : Lynx Decode
+ * 📞 Contact    : +62 882-5804-1396
+ * 📢 Channel    : https://whatsapp.com/channel/0029VbAnuii6GcGCu73oep1i
+ * ⚠️ Note       : Keep credit to respect the creator!
+ * ─────────────────────────
+ * 📝 Plugin: Felo AI Chat
+ */
+
+import fetch from 'node-fetch'
+
+let handler = async (m, { conn, text, usedPrefix, command }) => {
+    if (!text) return m.reply(`┌˚₊ ๑│ FELO AI │๑˚₊ ❌\n┇ \n│ ❌ *Input teks yang ingin ditanyakan!*\n┇ \n│ Contoh: ${usedPrefix + command} halo felo\n┇ \n└˚₊ ๑ ────────────── ๑˚₊\n> © ERINE-AI`)
+
+    await m.react('⏳')
+    
+    try {
+        let res = await fetch(`https://api.cmnty.web.id/ai/felo?text=${encodeURIComponent(text)}`)
+        let json = await res.json()
+
+        if (!json.status) throw new Error()
+
+        let txt = `┌˚₊ ๑│ FELO AI │๑˚₊ 🎨\n┇ \n│ ${json.result}\n┇ \n└˚₊ ๑ ────────────── ๑˚₊\n> © ERINE-AI`
+        
+        await m.react('✅')
+        await m.reply(txt)
+    } catch (e) {
+        await m.react('❌')
+        m.reply(`┌˚₊ ๑│ FELO AI │๑˚₊ ❌\n┇ \n│ ❌ *Terjadi kesalahan saat memproses data!*\n┇ \n└˚₊ ๑ ────────────── ๑˚₊\n> © ERINE-AI`)
+    }
+}
+
+handler.help = ['felo2 <teks>']
+handler.tags = ['ai']
+handler.command = /^felo2$/i
+handler.limit = true
+
+export default handler
