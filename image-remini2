@@ -1,0 +1,52 @@
+import axios from 'axios';
+import uploadImage from '../lib/uploadImage.js';
+
+const handler = async (m, { conn, usedPrefix, command }) => {
+    const q = m.quoted ? m.quoted : m;
+    const mime = (q.msg || q).mimetype || '';
+
+    if (!mime || !mime.includes('image')) {
+        return m.reply(`╭── ⋆ ✧ ꒰ 🎀 *INFO* 🎀 ꒱ ✧ ⋆ ──\n┊ 🌸 Kirim atau balas gambar yang ingin di-HD-kan!\n┊ ☁️ Contoh: *${usedPrefix + command}*\n╰────────────────────── ⋆ ✧`);
+    }
+
+    await m.react('🌼');
+
+    try {
+        const media = await q.download();
+        if (!media) throw new Error("Gagal mengunduh gambar dari pesan.");
+
+        const uploadedUrl = await uploadImage(media);
+        if (!uploadedUrl) throw new Error("Gagal mengunggah gambar ke server uploader.");
+
+        const { data } = await axios.get("https://api-faa.my.id/faa/hdv2", {
+            params: { url: uploadedUrl },
+            timeout: 60000
+        });
+
+        if (!data?.status || !data?.result) {
+            throw new Error("Gagal memproses gambar ke server HD.");
+        }
+
+        const caption = `╭── ⋆ ✧ ꒰ 🎀 *IMAGE UPSCALER V2* 🎀 ꒱ ✧ ⋆ ──\n` +
+                        `╰────────────────────── ⋆ ✧\n` +
+                        `> 🌸 *Li Shiya MD - HD Tools* 🌸`;
+
+        await conn.sendMessage(m.chat, {
+            image: { url: data.result },
+            caption: caption.trim()
+        }, { quoted: m });
+
+        await m.react('🌸');
+    } catch (err) {
+        console.error(err);
+        await m.react('❌');
+        await m.reply(`╭── ⋆ ✧ ꒰ 🎀 *ERROR* 🎀 ꒱ ✧ ⋆ ──\n┊ ⚠️ Gagal meningkatkan resolusi gambar.\n┊ _${err.message}_\n╰────────────────────── ⋆ ✧`);
+    }
+};
+
+handler.help = ['remini2'];
+handler.tags = ['image'];
+handler.command = /^remini2$/i;
+handler.limit = true;
+
+export default handler;
