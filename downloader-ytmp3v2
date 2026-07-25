@@ -1,0 +1,72 @@
+import axios from 'axios';
+import { exec } from 'child_process';
+import fs from 'fs';
+
+let handler = async (m, { conn, text, usedPrefix, command }) => {
+    if (!text) {
+        return m.reply(`╭── ⋆ ✧ ꒰ 🎀 *INFO* 🎀 ꒱ ✧ ⋆ ──\n┊ 🌸 Masukkan link YouTube yang ingin diunduh!\n┊ ☁️ Contoh: *${usedPrefix + command} https://youtu.be/E0GhF4b_zVU*\n╰────────────────────── ⋆ ✧`);
+    }
+
+    let isYoutube = /youtu\.?be|youtube\.com/i.test(text);
+    if (!isYoutube) {
+        return m.reply(`╭── ⋆ ✧ ꒰ 🎀 *INFO* 🎀 ꒱ ✧ ⋆ ──\n┊ ⚠️ Link yang kamu berikan bukan link YouTube yang valid!\n╰────────────────────── ⋆ ✧`);
+    }
+
+    await m.react('⏳');
+
+    let ran = Date.now();
+    let inputPath = `./temp_yt_${ran}.mp4`;
+    let outputPath = `./output_yt_${ran}.mp3`;
+
+    try {
+        let { data } = await axios.get(`https://lynxdecode.my.id/api/downloader/ytmp3?url=${encodeURIComponent(text)}&format=mp3`);
+        
+        if (!data.status || !data.result) {
+            throw new Error('Gagal mengambil data dari API.');
+        }
+
+        let { title, downloadUrl } = data.result;
+
+        let caption = `╭── ⋆ ✧ ꒰ 🎀 *YOUTUBE MP3* 🎀 ꒱ ✧ ⋆ ──\n`;
+        caption += `┊ 🎵 *Judul:* ${title}\n`;
+        caption += `┊ ☁️ *Audio sedang diproses..*\n`;
+        caption += `╰────────────────────── ⋆ ✧`;
+
+        await m.reply(caption);
+
+        let audioResponse = await axios.get(downloadUrl, { responseType: 'arraybuffer' });
+        fs.writeFileSync(inputPath, Buffer.from(audioResponse.data));
+
+        await new Promise((resolve, reject) => {
+            exec(`ffmpeg -i ${inputPath} -vn -c:a libmp3lame -b:a 128k ${outputPath}`, (err, stdout, stderr) => {
+                if (err) reject(err);
+                else resolve(stdout);
+            });
+        });
+
+        let audioBuffer = fs.readFileSync(outputPath);
+
+        await conn.sendMessage(m.chat, { 
+            audio: audioBuffer, 
+            mimetype: 'audio/mpeg', 
+            fileName: `${title}.mp3` 
+        }, { quoted: m });
+
+        if (fs.existsSync(inputPath)) fs.unlinkSync(inputPath);
+        if (fs.existsSync(outputPath)) fs.unlinkSync(outputPath);
+        await m.react('✅');
+    } catch (e) {
+        if (fs.existsSync(inputPath)) fs.unlinkSync(inputPath);
+        if (fs.existsSync(outputPath)) fs.unlinkSync(outputPath);
+        console.error(e);
+        await m.react('❌');
+        m.reply(`╭── ⋆ ✧ ꒰ 🎀 *ERROR* 🎀 ꒱ ✧ ⋆ ──\n┊ ⚠️ Terjadi kesalahan saat memproses audio.'}_\n╰────────────────────── ⋆ ✧`);
+    }
+};
+
+handler.help = ['ytmp3v2 <url>'];
+handler.tags = ['downloader'];
+handler.command = /^(ytmp3v2)$/i;
+handler.limit = true;
+
+export default handler;
