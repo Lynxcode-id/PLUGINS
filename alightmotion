@@ -1,0 +1,87 @@
+import { AIRich } from '../lib/nixcode.js';
+import axios from 'axios';
+import crypto from 'crypto';
+
+let handler = async (m, { conn, text, usedPrefix, command }) => {
+    if (!text) {
+        return m.reply(`Ketik: ${usedPrefix + command} <email> [magic_link]`);
+    }
+
+    const args = text.split(' ');
+    const email = args[0];
+    const link = args[1];
+
+    const BASE_URL = 'https://satriam.satriadeveloperz.workers.dev';
+    const HEADERS = {
+        'User-Agent': 'Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Mobile Safari/537.36',
+        'Accept-Language': 'id-ID,id;q=0.9,en-US;q=0.8,en;q=0.7',
+        'Content-Type': 'application/json',
+        'Origin': BASE_URL,
+        'Referer': `${BASE_URL}/`
+    };
+
+    const rich = new AIRich(conn)
+        .setTitle('🚀 SATRIAM GENERATOR')
+        .setFooter('© Erine-AI x Nixel');
+
+    await m.react('⏳');
+
+    try {
+        if (!link) {
+            rich.addText(`⏳ Mengirim Magic Link ke *${email}*...`, { id: 'load' });
+            await rich.send(m.chat, { quoted: m });
+
+            const res = await axios.post(`${BASE_URL}/api/satriam/send-link`, { email }, { headers: HEADERS, timeout: 15000 });
+            
+            if (!res.data?.success) {
+                throw new Error(res.data?.message || 'Gagal mengirim link');
+            }
+
+            rich.addText(`✅ *Magic Link Terkirim!*\n\nCek inbox email lu, copy linknya, lalu balas pakai format:\n\n*${usedPrefix + command} ${email} <paste_link_disini>*`, { replace: 'load' });
+            await rich.sendEdit();
+        } else {
+            rich.addText(`⏳ Memverifikasi Magic Link untuk *${email}*...`, { id: 'load' });
+            await rich.send(m.chat, { quoted: m });
+
+            const res = await axios.post(`${BASE_URL}/api/satriam/verify-link`, { email, magicLink: link }, { headers: HEADERS, timeout: 15000 });
+            
+            if (!res.data?.success) {
+                throw new Error(res.data?.message || 'Verifikasi gagal');
+            }
+
+            rich.addPost({
+                profile: "https://files.catbox.moe/p14w20.jpg",
+                username: 'Satriam Account',
+                title: `Plan: ${res.data.planName}`,
+                subtitle: `UID: ${res.data.uid}`,
+                caption: `✅ *Verifikasi Berhasil!*\n\n⏰ *Valid Until:* ${res.data.validUntil}`,
+                verified: true,
+                url: BASE_URL,
+                thumbnail: 'https://images.unsplash.com/photo-1627398240411-8be57482688d?w=800&q=80',
+                source: 'SATRIAM',
+                footer: 'Auto Generated Session',
+                deeplink: BASE_URL,
+                icon: "https://files.catbox.moe/p14w20.jpg",
+            }, { replace: 'load', id: 'result' });
+
+            rich.addText(`🔑 *DATA SESSION:*`, { insertAt: 'result', id: 'label' });
+            rich.addCode('json', JSON.stringify(res.data, null, 2), { insertAt: 'label' });
+            
+            await rich.sendEdit();
+        }
+        await m.react('✅');
+    } catch (e) {
+        const errMsg = e.response?.data?.message || e.message;
+        rich.addText(`❌ *Gagal:*\n_${errMsg}_`, { replace: 'load' });
+        await rich.sendEdit();
+        await m.react('❌');
+    }
+};
+
+handler.help = ['am3 <email> [link]'];
+handler.tags = ['freemium'];
+handler.command = /^(am3)$/i;
+handler.limit = true;
+handler.register = true;
+
+export default handler;
