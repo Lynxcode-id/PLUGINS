@@ -1,0 +1,83 @@
+import axios from 'axios'
+import uploadImage from '../lib/uploadImage.js'
+
+let handler = async (m, { conn, usedPrefix, command }) => {
+    let q = m.quoted ? m.quoted : m
+    let mime = (q.msg || q).mimetype || ''
+    
+    if (!/image\/(jpe?g|png)/.test(mime)) {
+        return m.reply(`┌˚₊ ๑│ AI ENHANCE HD │๑˚₊
+┇ 
+│ Kirim atau balas gambar dengan caption *${usedPrefix + command}* untuk memperbesar resolusi gambar.
+┇ 
+└˚₊ ๑ ────────────── ๑˚₊
+> © ERINE-AI`)
+    }
+
+    await m.react('⏳')
+
+    try {
+        let mediaBuffer = await q.download()
+        let catboxUrl = await uploadImage(mediaBuffer)
+
+        let response = await axios.post("https://api.alwayscodex.eu.cc/api/imagehd/ai-enhancev8", {
+            url: catboxUrl,
+            scale: "4",
+            model: "plus"
+        }, {
+            headers: { 
+                "Content-Type": "application/json",
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+            },
+            responseType: 'arraybuffer'
+        })
+
+        let contentType = response.headers['content-type'] || ''
+        let resultBuffer
+
+        if (contentType.includes('image')) {
+            resultBuffer = Buffer.from(response.data)
+        } else {
+            let jsonResult = JSON.parse(Buffer.from(response.data).toString('utf-8'))
+            let downloadUrl = jsonResult.url || jsonResult.result || (jsonResult.data && jsonResult.data.url)
+            
+            if (!downloadUrl) throw new Error("Gagal mengekstrak URL gambar dari respon API.")
+            
+            let imgRes = await axios.get(downloadUrl, { 
+                responseType: 'arraybuffer',
+                headers: { "User-Agent": "Mozilla/5.0" }
+            })
+            resultBuffer = Buffer.from(imgRes.data)
+        }
+
+        let caption = `┌˚₊ ๑│ AI ENHANCE HD │๑˚₊
+┇ 
+│ *Status:* Sukses
+│ *Model:* Plus (AI-Enhance V8)
+│ *Skala:* 4x Ultra HD
+┇ 
+└˚₊ ๑ ────────────── ๑˚₊
+> © ERINE-AI`
+
+        await conn.sendMessage(m.chat, { image: resultBuffer, caption: caption }, { quoted: m })
+        await m.react('✅')
+
+    } catch (err) {
+        console.error(err)
+        await m.react('❌')
+        m.reply(`┌˚₊ ๑│ E R R O R │๑˚₊
+┇ 
+│ Terjadi kesalahan saat memproses gambar. Silakan coba beberapa saat lagi.
+┇ 
+└˚₊ ๑ ────────────── ๑˚₊
+> © ERINE-AI`)
+    }
+}
+
+handler.help = ['hd16']
+handler.tags = ['image']
+handler.command = /^(hd16)$/i
+handler.limit = true
+handler.register = true
+
+export default handler
